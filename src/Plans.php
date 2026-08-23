@@ -16,10 +16,20 @@ class Plans
 {
     public const UNLIMITED = -1;
 
-    /** @return array<string, array> */
+    /**
+     * @return array<string, array>
+     *
+     * Read from wherever you keep them. Point `plans_from` at your own file and the
+     * package reads that instead of its own config, so a plan is defined once.
+     */
     public static function all(): array
     {
-        return config('larameter.plans') ?? [];
+        return config((string) config('larameter.plans_from', 'larameter.plans')) ?? [];
+    }
+
+    public static function find(?string $key): Plan
+    {
+        return new Plan((string) $key, static::all()[$key] ?? []);
     }
 
     public static function exists(?string $key): bool
@@ -54,6 +64,33 @@ class Plans
         }
 
         return (int) ($credits[$window] ?? static::UNLIMITED);
+    }
+
+    /**
+     * The switches a plan turns on: an API, a custom domain, white labelling.
+     *
+     * @return array<string, bool>
+     */
+    public static function features(?string $key): array
+    {
+        $plan = static::all()[$key] ?? [];
+
+        return $plan['features'] ?? [];
+    }
+
+    /**
+     * Whether a plan includes a feature.
+     *
+     * Absent means NO, which is the third default in this class and the third direction.
+     * Credits absent means none, because credits are what you sell. A ceiling absent
+     * means unlimited, because a restriction you never wrote down was never meant to
+     * apply. And a feature absent means off, because a feature is something you unlock:
+     * defaulting it on would hand the whole product to anyone on a plan you forgot to
+     * fill in.
+     */
+    public static function allows(?string $key, string $feature): bool
+    {
+        return (bool) (static::features($key)[$feature] ?? false);
     }
 
     /**

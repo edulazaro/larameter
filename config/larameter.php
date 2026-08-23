@@ -56,6 +56,14 @@ return [
 
     'plans' => [
         'free' => [
+            // Switches this plan turns on. Absent means off: a feature is something you
+            // unlock, so defaulting it on would give the product away on any plan you
+            // forgot to fill in. Read with $org->planAllows('api_access').
+            'features' => [
+                // 'api_access' => false,
+                // 'white_label' => false,
+            ],
+
             // The weekly at half the monthly. What that ratio really decides is how much
             // somebody may concentrate: at 50% they can burn the month in two weeks, at
             // 25% they need all four.
@@ -78,8 +86,45 @@ return [
         // ],
     ],
 
-    // What a brand new account starts on. null for none, if credits are only ever bought.
+    // What an account falls back to when nothing else resolves one. null for none, if
+    // credits are only ever bought.
     'default_plan' => 'free',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Where the plans live
+    |--------------------------------------------------------------------------
+    | Point this at your own file and a plan is defined once, in one place, with the
+    | commercial half beside the metered half. The package reads `credits`, `limits` and
+    | `features` and ignores everything else, so your name, price and whatever else you
+    | keep in there stays where it belongs.
+    |
+    |     'plans_from' => 'plans',        // config/plans.php
+    |     'plans_from' => 'plans.tiers',  // nested, if that file holds other things too
+    */
+
+    'plans_from' => 'larameter.plans',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Working out which plan an account is on
+    |--------------------------------------------------------------------------
+    | Three sources, in this order, and the order is the logic:
+    |
+    |   1. `override_column` on the model, for courtesy accounts, demos and partners. It
+    |      beats the subscription on purpose: a person decided it and Stripe should not
+    |      undo it. Null to switch that off.
+    |   2. The Cashier subscription, matched by the price id under `price_id_key`. Cashier
+    |      is detected, never required: without it this step is skipped.
+    |   3. Whatever setCreditPlan() stored, then `default_plan`.
+    |
+    | An app that sells credit bundles and no subscriptions only ever reaches step 3, and
+    | none of this costs it anything.
+    */
+
+    'override_column' => null,
+    'price_id_key' => 'stripe_price_id',
+    'subscription_type' => 'default',
 
     /*
     |--------------------------------------------------------------------------

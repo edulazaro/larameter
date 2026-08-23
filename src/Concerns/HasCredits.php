@@ -6,6 +6,8 @@ use EduLazaro\Larameter\UsageTracker;
 use EduLazaro\Larameter\Models\Account;
 use EduLazaro\Larameter\Models\Deposit;
 use EduLazaro\Larameter\Models\UsageRecord;
+use EduLazaro\Larameter\Plan;
+use EduLazaro\Larameter\PlanResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
@@ -25,6 +27,8 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  */
 trait HasCredits
 {
+    private ?Plan $resolvedPlan = null;
+
     /**
      * The account row, for eager loading. Null until this model has one.
      *
@@ -108,22 +112,41 @@ trait HasCredits
 
     // ─── Plan and top-ups ───────────────────────────────────────────
 
+    /** The plan, resolved: an override, then the subscription, then what was stored. */
+    public function plan(): Plan
+    {
+        // Memoised per instance: resolving asks Cashier, and this gets called several
+        // times in a request.
+        return $this->resolvedPlan ??= app(PlanResolver::class)->resolve($this);
+    }
+
     public function creditPlan(): ?string
     {
-        return $this->creditAccount()->plan_key;
+        return $this->plan()->key() ?: null;
+    }
+
+    public function onPlan(string $key): bool
+    {
+        return $this->creditPlan() === $key;
+    }
+
+    /** Forget the resolved plan, after a subscription changes mid-request. */
+    public function forgetPlan(): void
+    {
+        $this->resolvedPlan = null;
     }
 
     /**
-     * Move to a plan, or to none.
+     * Store a plan on the account.
      *
-     * The package cannot know when yours changes: Stripe, a manual override, a trial
-     * quietly lapsing. Call this from wherever you do know. The windows are not
-     * restarted, so an upgrade raises the ceiling rather than granting a second
-     * allowance.
+     * Only needed when nothing can resolve it: no override column, no subscription. With
+     * Cashier in play the plan is worked out from the subscription and this is the
+     * fallback, not the source.
      */
     public function setCreditPlan(?string $key): void
     {
         $this->creditAccount()->setPlan($key);
+        $this->forgetPlan();
     }
 
     /**
@@ -157,6 +180,12 @@ trait HasCredits
         array $metadata = [],
     ): Deposit {
         return $this->creditAccount()->deposit($credits, $reason, $source, $note, $metadata);
+    }
+
+    /** Whether this account's plan includes a feature. Absent means no. */
+    public function planAllows(string $feature): bool
+    {
+        return $this->plan()->allows($feature);
     }
 
     // ─── Ceilings ───────────────────────────────────────────────────

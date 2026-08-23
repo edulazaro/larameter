@@ -127,13 +127,47 @@ Done. The account row appears the first time you touch it.
 Plans are optional. An account with no plan is valid and spends purchased credits only,
 which is what you want if you sell bundles rather than subscriptions.
 
-    $org->setCreditPlan('pro');    // your subscription changed
-    $org->setCreditPlan(null);     // cancelled
+**Define them once, wherever they already live.** Point the package at your own file and
+it reads `credits`, `limits` and `features`, ignoring the rest, so the commercial half of
+a plan stays next to the metered half:
 
-The package cannot know when your plan changes, so it does not guess. Call `setCreditPlan`
-from wherever you do know: an observer on Cashier's `Subscription` model, an admin action,
-a grant. Be aware that a **trial lapsing fires no event at all**, so if your plans can
-expire by the clock alone, something has to notice.
+    // config/larameter.php
+    'plans_from' => 'plans.tiers',
+
+    // config/plans.php
+    'tiers' => [
+        'pro' => [
+            'name' => 'Pro',
+            'price' => 59_00,
+            'stripe_price_id' => env('STRIPE_PRICE_PRO'),
+
+            'credits'  => ['week' => 12_500, 'month' => 50_000],
+            'limits'   => ['members' => 1, 'cases' => -1],
+            'features' => ['api_access' => false, 'own_cases' => true],
+        ],
+    ],
+
+**Which plan an account is on is worked out, not stored.** Three sources, in this order:
+
+    override_column      a courtesy account, a demo, a partner
+    Cashier subscription matched by price id
+    what was stored      setCreditPlan(), then default_plan
+
+The override beats the subscription on purpose: a person decided it and Stripe should not
+undo it. Cashier is detected and never required, so an app with no subscriptions only ever
+reaches the third source and pays nothing for the other two.
+
+    $org->plan();                    // a Plan, never null
+    $org->plan()->name();
+    $org->creditPlan();              // 'pro', or null
+    $org->onPlan('pro');
+    $org->planAllows('api_access');  // absent means no
+
+This is why there is no line in your app wiring a resolver to an account. That line is
+where a plan change gets forgotten.
+
+`setCreditPlan()` remains for the case nothing can resolve: no override column, no
+subscription. It is the fallback, not the source.
 
 Changing plan does not restart the windows. An upgrade raises the ceiling over what has
 already been spent, rather than handing a second allowance to whoever works out they can

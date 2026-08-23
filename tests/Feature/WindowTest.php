@@ -35,7 +35,7 @@ class WindowTest extends TestCase
 
     private function window(Organization $org, string $key): ?Window
     {
-        return Window::where('account_id', $org->creditAccount()->getKey())->where('key', $key)->first();
+        return Window::where('account_id', $org->usage()->account()->getKey())->where('key', $key)->first();
     }
 
     public function test_asking_the_balance_never_opens_a_window(): void
@@ -46,9 +46,9 @@ class WindowTest extends TestCase
 
         // The row IS the clock. If merely looking created one, opening the app would burn
         // the session without a word having been typed.
-        $this->assertSame(50, $org->creditsRemaining());
+        $this->assertSame(50, $org->usage()->remaining());
         $this->assertSame(0, Window::count());
-        $this->assertFalse($org->hasCredits(999));
+        $this->assertFalse($org->usage()->allows(999));
         $this->assertSame(0, Window::count());
     }
 
@@ -57,16 +57,16 @@ class WindowTest extends TestCase
         Carbon::setTestNow('2026-01-10 09:00:00');
 
         $org = $this->org();
-        $org->chargeCredits('thing', credits: 50);
+        $org->usage()->charge('thing', credits: 50);
 
-        $this->assertSame(0, $org->creditsRemaining());
+        $this->assertSame(0, $org->usage()->remaining());
         $this->assertSame('2026-01-10 09:00:00', $this->window($org, 'session')->started_at->toDateTimeString());
 
         Carbon::setTestNow('2026-01-10 20:00:00');
 
         // Reported full, but the row has not moved: the five hours do not start until
         // they actually spend something.
-        $this->assertSame(50, $org->creditsRemaining());
+        $this->assertSame(50, $org->usage()->remaining());
         $this->assertSame('2026-01-10 09:00:00', $this->window($org, 'session')->started_at->toDateTimeString());
     }
 
@@ -75,11 +75,11 @@ class WindowTest extends TestCase
         Carbon::setTestNow('2026-01-10 09:00:00');
 
         $org = $this->org();
-        $org->chargeCredits('thing', credits: 50);
+        $org->usage()->charge('thing', credits: 50);
 
         Carbon::setTestNow('2026-01-10 20:00:00');
 
-        $org->chargeCredits('thing', credits: 10);
+        $org->usage()->charge('thing', credits: 10);
 
         $session = $this->window($org, 'session');
 
@@ -95,12 +95,12 @@ class WindowTest extends TestCase
         Carbon::setTestNow('2026-01-01 09:00:00');
 
         $org = $this->org();
-        $org->chargeCredits('thing', credits: 10);
+        $org->usage()->charge('thing', credits: 10);
 
         // Grid: Jan 1-8, Jan 8-15, Jan 15-22.
         Carbon::setTestNow('2026-01-20 09:00:00');
 
-        $org->chargeCredits('thing', credits: 10);
+        $org->usage()->charge('thing', credits: 10);
 
         $week = $this->window($org, 'week');
 
@@ -114,16 +114,16 @@ class WindowTest extends TestCase
         Carbon::setTestNow('2026-01-01 09:00:00');
 
         $org = $this->org();
-        $org->chargeCredits('thing', credits: 200);
+        $org->usage()->charge('thing', credits: 200);
 
-        $this->assertSame(0, $org->creditHeadroom());
+        $this->assertSame(0, $org->usage()->headroom());
 
         Carbon::setTestNow('2026-02-01 09:00:00');
 
-        $org->chargeCredits('thing', credits: 1);
+        $org->usage()->charge('thing', credits: 1);
 
         // Four weeks passed. One allowance, minus the credit just spent.
-        $this->assertSame(49, $org->creditHeadroom(), 'the session is what binds now');
+        $this->assertSame(49, $org->usage()->headroom(), 'the session is what binds now');
         $this->assertSame(1, $this->window($org, 'week')->credits_used);
     }
 
@@ -140,20 +140,20 @@ class WindowTest extends TestCase
         Carbon::setTestNow('2026-03-02 09:00:00');
         $org = $this->org();
 
-        $this->assertSame(2_000, $org->creditHeadroom(), 'the week is what binds at the start');
+        $this->assertSame(2_000, $org->usage()->headroom(), 'the week is what binds at the start');
 
-        $org->chargeCredits('a heavy week', credits: 2_000);
-        $this->assertSame(0, $org->creditHeadroom());
+        $org->usage()->charge('a heavy week', credits: 2_000);
+        $this->assertSame(0, $org->usage()->headroom());
 
         // Second week: the weekly came back, the monthly did not.
         Carbon::setTestNow('2026-03-09 09:00:00');
-        $this->assertSame(2_000, $org->creditHeadroom());
+        $this->assertSame(2_000, $org->usage()->headroom());
 
-        $org->chargeCredits('another heavy week', credits: 2_000);
+        $org->usage()->charge('another heavy week', credits: 2_000);
 
         // Third week. The week is fresh and the month is spent, so the month binds now.
         Carbon::setTestNow('2026-03-16 09:00:00');
-        $this->assertSame(0, $org->creditHeadroom(), 'the month is gone until it renews');
+        $this->assertSame(0, $org->usage()->headroom(), 'the month is gone until it renews');
     }
 
     public function test_an_unused_week_does_not_pile_up_into_the_next_one(): void
@@ -166,14 +166,14 @@ class WindowTest extends TestCase
 
         Carbon::setTestNow('2026-03-02 09:00:00');
         $org = $this->org();
-        $org->chargeCredits('open the grid', credits: 1);
+        $org->usage()->charge('open the grid', credits: 1);
 
         // Three weeks untouched.
         Carbon::setTestNow('2026-03-23 09:00:00');
 
         // Still 2000, not 6000. This is the whole point of a weekly cap: it is a brake,
         // and a brake you can save up is not a brake.
-        $this->assertSame(2_000, $org->creditHeadroom());
+        $this->assertSame(2_000, $org->usage()->headroom());
     }
 
     public function test_every_window_takes_its_share_of_one_figure(): void
@@ -187,9 +187,9 @@ class WindowTest extends TestCase
 
         $org = $this->org();
 
-        $this->assertSame(2_000, $org->creditAllowanceIn('session'));
-        $this->assertSame(12_500, $org->creditAllowanceIn('weekly'));
-        $this->assertSame(50_000, $org->creditAllowanceIn('monthly'));
+        $this->assertSame(2_000, $org->usage()->allowanceIn('session'));
+        $this->assertSame(12_500, $org->usage()->allowanceIn('weekly'));
+        $this->assertSame(50_000, $org->usage()->allowanceIn('monthly'));
     }
 
     public function test_raising_a_plan_raises_every_window_with_it(): void
@@ -204,11 +204,11 @@ class WindowTest extends TestCase
         ]);
 
         $org = $this->org();
-        $org->setCreditPlan('pro');
+        $org->usage()->setPlan('pro');
 
         // One figure per plan is the point: nobody can raise the monthly and leave the
         // weekly behind, where it would silently become the binding constraint.
-        $this->assertSame(25_000, $org->creditAllowanceIn('weekly'));
+        $this->assertSame(25_000, $org->usage()->allowanceIn('weekly'));
     }
 
     public function test_a_window_with_no_length_is_a_config_error_that_says_which_one(): void
@@ -219,7 +219,7 @@ class WindowTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('window [broken] has no length');
 
-        $this->org()->creditsRemaining();
+        $this->org()->usage()->remaining();
     }
 
     public function test_declaring_no_windows_at_all_opts_out_of_allowance_metering(): void
@@ -227,12 +227,12 @@ class WindowTest extends TestCase
         config()->set('larameter.windows', []);
 
         $org = $this->org();
-        $org->chargeCredits('thing', credits: 10_000);
+        $org->usage()->charge('thing', credits: 10_000);
 
         // Usage is still recorded. Nothing is refused, because there is no period for an
         // allowance to be an allowance of.
-        $this->assertSame(PHP_INT_MAX, $org->creditsRemaining());
-        $this->assertSame(1, $org->creditUsage()->count());
+        $this->assertSame(PHP_INT_MAX, $org->usage()->remaining());
+        $this->assertSame(1, $org->usage()->records()->count());
         $this->assertSame(0, Window::count());
     }
 
@@ -242,15 +242,15 @@ class WindowTest extends TestCase
 
         $org = $this->org();
 
-        $this->assertNull($org->creditsResetAt(), 'nothing is blocking them');
+        $this->assertNull($org->usage()->resetsAt(), 'nothing is blocking them');
 
-        $org->chargeCredits('thing', credits: 50);
+        $org->usage()->charge('thing', credits: 50);
 
-        $this->assertSame('2026-01-10 14:00:00', Carbon::instance($org->creditsResetAt())->toDateTimeString());
+        $this->assertSame('2026-01-10 14:00:00', Carbon::instance($org->usage()->resetsAt())->toDateTimeString());
 
         // Buying credits unblocks them now, so there is nothing to wait for.
-        $org->depositCredits(100);
+        $org->usage()->deposit(100);
 
-        $this->assertNull($org->creditsResetAt());
+        $this->assertNull($org->usage()->resetsAt());
     }
 }

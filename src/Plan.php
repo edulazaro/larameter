@@ -43,6 +43,17 @@ class Plan
     }
 
     /**
+     * Whether this is a given plan.
+     *
+     * @param string $handle
+     * @return bool
+     */
+    public function is(string $handle): bool
+    {
+        return $this->handle === $handle;
+    }
+
+    /**
      * Whether the plan includes a feature. Absent means no.
      *
      * @param string $feature

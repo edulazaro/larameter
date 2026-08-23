@@ -31,19 +31,19 @@ class HasCreditsTest extends TestCase
     {
         $org = Organization::create(['name' => 'Acme']);
 
-        $this->assertTrue($org->hasCredits());
-        $this->assertSame(10, $org->creditAllowanceIn('week'));
-        $this->assertSame(10, $org->creditsRemaining());
+        $this->assertTrue($org->usage()->allows());
+        $this->assertSame(10, $org->usage()->allowanceIn('week'));
+        $this->assertSame(10, $org->usage()->remaining());
 
-        $org->chargeCredits('create_form');
+        $org->usage()->charge('create_form');
 
-        $this->assertSame(7, $org->creditsRemaining());
-        $this->assertSame(1, $org->creditUsage()->count());
+        $this->assertSame(7, $org->usage()->remaining());
+        $this->assertSame(1, $org->usage()->records()->count());
 
-        $org->chargeCredits('create_form', credits: 7);
+        $org->usage()->charge('create_form', credits: 7);
 
-        $this->assertSame(0, $org->creditsRemaining());
-        $this->assertFalse($org->hasCredits());
+        $this->assertSame(0, $org->usage()->remaining());
+        $this->assertFalse($org->usage()->allows());
     }
 
     public function test_the_plan_is_set_from_wherever_the_app_learns_it_changed(): void
@@ -54,25 +54,25 @@ class HasCreditsTest extends TestCase
 
         // From a Cashier subscription observer, a grant, an admin action. The package
         // cannot know, so it does not try.
-        $org->setCreditPlan('pro');
+        $org->usage()->setPlan('pro');
 
         $this->assertSame('pro', $org->plan()->handle);
-        $this->assertSame(500, $org->creditHeadroom());
+        $this->assertSame(500, $org->usage()->headroom());
 
         // Clearing the stored key does not mean "no plan": it means stop forcing one, so
         // whatever resolves next decides. With no subscription that is the default.
-        $org->setCreditPlan(null);
+        $org->usage()->setPlan(null);
 
-        $this->assertTrue($org->onPlan('free'));
+        $this->assertTrue($org->plan()->is('free'));
     }
 
     public function test_buying_credits_adds_to_a_bucket_no_window_can_touch(): void
     {
         $org = Organization::create(['name' => 'Acme']);
 
-        $org->depositCredits(1_000);
+        $org->usage()->deposit(1_000);
 
-        $this->assertSame(1_010, $org->creditsRemaining());
+        $this->assertSame(1_010, $org->usage()->remaining());
     }
 
     public function test_it_answers_what_an_action_costs_without_being_told(): void
@@ -83,16 +83,16 @@ class HasCreditsTest extends TestCase
 
         $org = Organization::create(['name' => 'Acme']);
 
-        $this->assertSame(10, $org->creditPrice('search_legislation'));
-        $this->assertTrue($org->hasCreditsFor('search_legislation'));
+        $this->assertSame(10, $org->usage()->price('search_legislation'));
+        $this->assertTrue($org->usage()->allows('search_legislation'));
 
-        $org->chargeCredits('search_legislation');
-        $org->chargeCredits('search_legislation');
+        $org->usage()->charge('search_legislation');
+        $org->usage()->charge('search_legislation');
 
         // Five left, and the search costs ten.
-        $this->assertSame(5, $org->fresh()->creditsRemaining());
-        $this->assertFalse($org->fresh()->hasCreditsFor('search_legislation'));
-        $this->assertTrue($org->fresh()->hasCredits(), 'still has credit, just not enough');
+        $this->assertSame(5, $org->fresh()->usage()->remaining());
+        $this->assertFalse($org->fresh()->usage()->allows('search_legislation'));
+        $this->assertTrue($org->fresh()->usage()->allows(), 'still has credit, just not enough');
     }
 
     public function test_an_unpriced_action_is_always_affordable(): void
@@ -103,7 +103,7 @@ class HasCreditsTest extends TestCase
 
         $org = Organization::create(['name' => 'Acme']);
 
-        $this->assertFalse($org->hasCredits());
-        $this->assertTrue($org->hasCreditsFor('something_free'));
+        $this->assertFalse($org->usage()->allows());
+        $this->assertTrue($org->usage()->allows('something_free'));
     }
 }

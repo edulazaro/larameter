@@ -46,8 +46,8 @@ class MeterTest extends TestCase
     {
         $org = $this->org();
 
-        $this->assertInstanceOf(MemberMeter::class, $org->getMeter('members'));
-        $this->assertInstanceOf(CaseMeter::class, $org->getMeter('cases'));
+        $this->assertInstanceOf(MemberMeter::class, $org->quota()->get('members'));
+        $this->assertInstanceOf(CaseMeter::class, $org->quota()->get('cases'));
     }
 
     public function test_it_counts_without_anybody_passing_a_number(): void
@@ -56,28 +56,28 @@ class MeterTest extends TestCase
         Member::create(['organization_id' => $org->id]);
         Member::create(['organization_id' => $org->id]);
 
-        $this->assertSame(2, $org->getMeter('members')->count());
+        $this->assertSame(2, $org->quota()->get('members')->count());
     }
 
     public function test_the_cap_holds(): void
     {
         $org = $this->org(['members' => 2]);
 
-        $this->assertTrue($org->fits('members'));
+        $this->assertTrue($org->quota()->allows('members'));
 
         Member::create(['organization_id' => $org->id]);
         Member::create(['organization_id' => $org->id]);
 
-        $this->assertFalse($org->fresh()->fits('members'));
+        $this->assertFalse($org->fresh()->quota()->allows('members'));
     }
 
     public function test_minus_one_is_unlimited_and_zero_is_none(): void
     {
         $unlimited = $this->org(['members' => -1]);
-        $this->assertTrue($unlimited->fits('members'));
+        $this->assertTrue($unlimited->quota()->allows('members'));
 
         $none = $this->org(['members' => 0]);
-        $this->assertFalse($none->fits('members'));
+        $this->assertFalse($none->quota()->allows('members'));
     }
 
     public function test_asking_for_several_at_once_is_answered_for_several(): void
@@ -85,15 +85,15 @@ class MeterTest extends TestCase
         $org = $this->org(['members' => 3]);
         Member::create(['organization_id' => $org->id]);
 
-        $this->assertTrue($org->fits('members', 2));
-        $this->assertFalse($org->fits('members', 3));
+        $this->assertTrue($org->quota()->allows('members', 2));
+        $this->assertFalse($org->quota()->allows('members', 3));
     }
 
     public function test_a_resource_with_no_meter_is_unlimited(): void
     {
         // The other way round, a package you just installed would start refusing to
         // create things it was never told to count.
-        $this->assertTrue($this->org()->fits('projects'));
+        $this->assertTrue($this->org()->quota()->allows('projects'));
     }
 
     public function test_the_class_name_says_the_handle_when_you_do_not(): void
@@ -113,9 +113,9 @@ class MeterTest extends TestCase
     {
         $org = $this->org();
 
-        $this->assertSame('Members', $org->getMeter('members')->label());
-        $this->assertSame('members', $org->getMeter('members')->handle);
-        $this->assertSame('Expedientes', $org->getMeter('cases')->label());
+        $this->assertSame('Members', $org->quota()->get('members')->label());
+        $this->assertSame('members', $org->quota()->get('members')->handle);
+        $this->assertSame('Expedientes', $org->quota()->get('cases')->label());
     }
 
     public function test_the_usage_screen_builds_itself(): void
@@ -128,7 +128,7 @@ class MeterTest extends TestCase
         $this->assertSame([
             ['handle' => 'members', 'label' => 'Members', 'count' => 1, 'limit' => 2],
             ['handle' => 'cases', 'label' => 'Expedientes', 'count' => 2, 'limit' => -1],
-        ], $org->fresh()->usageSummary());
+        ], $org->fresh()->quota()->summary());
     }
 
     public function test_a_meter_can_also_be_added_from_outside_the_class(): void
@@ -137,7 +137,7 @@ class MeterTest extends TestCase
         // it, or the usage screen shows every resource as many times as it was mentioned.
         Organization::meter(MemberMeter::class);
 
-        $this->assertCount(2, $this->org()->getMeters());
+        $this->assertCount(2, $this->org()->quota()->all());
     }
 
     public function test_the_attribute_declares_the_same_as_the_property(): void
@@ -147,8 +147,8 @@ class MeterTest extends TestCase
 
         $workspace = Workspace::create(['name' => 'Acme']);
 
-        $this->assertInstanceOf(MemberMeter::class, $workspace->getMeter('members'));
-        $this->assertTrue($workspace->fits('members'));
+        $this->assertInstanceOf(MemberMeter::class, $workspace->quota()->get('members'));
+        $this->assertTrue($workspace->quota()->allows('members'));
     }
 
     public function test_all_three_ways_combine_without_doubling(): void
@@ -156,7 +156,7 @@ class MeterTest extends TestCase
         Organization::meter(ProjectMeter::class);
         Organization::meter(MemberMeter::class);
 
-        $keys = array_keys($this->org()->getMeters());
+        $keys = array_keys($this->org()->quota()->all());
 
         sort($keys);
         $this->assertSame(['cases', 'members', 'projects'], $keys);
@@ -166,7 +166,7 @@ class MeterTest extends TestCase
     {
         Organization::meter(ProjectMeter::class);
 
-        $keys = array_keys($this->org()->getMeters());
+        $keys = array_keys($this->org()->quota()->all());
 
         $this->assertContains('members', $keys, 'declared on the model');
         $this->assertContains('projects', $keys, 'added from outside');
@@ -183,7 +183,7 @@ class MeterTest extends TestCase
         $org = BilledOrganization::create(['name' => 'Acme']);
 
         $this->assertSame(['stripe'], $org->meters()->all(), 'Cashier keeps its meters()');
-        $this->assertArrayHasKey('members', $org->getMeters(), 'and the package has its own');
-        $this->assertTrue($org->fits('members'));
+        $this->assertArrayHasKey('members', $org->quota()->all(), 'and the package has its own');
+        $this->assertTrue($org->quota()->allows('members'));
     }
 }

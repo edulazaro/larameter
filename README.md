@@ -107,11 +107,16 @@ Add the trait to whatever you bill:
 
 Done. The account row appears the first time you touch it.
 
-    $org->hasCredits();
-    $org->chargeCredits('create_form');
-    $org->meterCredits('gpt-4o', 'token', $in, $out);
-    $org->creditsRemaining();
-    $org->creditsResetAt();
+    $org->usage()->allows('create_form');
+    $org->usage()->charge('create_form');
+    $org->usage()->meter('gpt-4o', 'token', $in, $out);
+    $org->usage()->remaining();
+    $org->usage()->resetsAt();
+
+**Three doors and no more.** `plan()` answers what was bought, `usage()` what has been
+spent, `quota()` how many of something may exist. A trait goes into a class you did not
+write, and every name it claims there is a name that class can no longer use: this one
+brought a `meters()` once, which is a fatal error on any model that also uses Cashier.
 
 ## Plans
 
@@ -144,7 +149,7 @@ resolved by a list of providers, tried in order, first answer wins:
     'plan_providers' => [
         PlanProviders\ForcedPlanProvider::class,    // a column of yours, set by hand
         PlanProviders\CashierPlanProvider::class,   // the subscription, by price id
-        PlanProviders\StoredPlanProvider::class,    // setCreditPlan(), then the default
+        PlanProviders\StoredPlanProvider::class,    // usage()->setPlan(), then the default
     ],
 
 **The order is the policy.** Forced before Cashier means a plan somebody set by hand for a
@@ -163,7 +168,7 @@ billed differently from another.
     $org->plan()->handle;                // 'pro'
     $org->plan()->name;                  // 'Pro'
     $org->plan()->allows('api_access');
-    $org->onPlan('pro');
+    $org->plan()->is('pro');
 
 Data is a property, a question is a method. `name` is a property and not a method because
 a plan name is a product name: Pro, Max, Hyper Team. Nobody translates those, any more
@@ -176,8 +181,8 @@ default. What a provider had to know to answer stays inside that provider.
 **Plans are optional.** `HasCredits` alone is an app that sells bundles: no plan, no
 allowance, everything from what was purchased.
 
-`setCreditPlan()` remains for the case nothing can resolve: no override column, no
-subscription. It is the fallback, not the source.
+`$org->usage()->setPlan()` remains for the case nothing can resolve: no override
+column, no subscription. It is the fallback, not the source.
 
 Changing plan does not restart the windows. An upgrade raises the ceiling over what has
 already been spent, rather than handing a second allowance to whoever works out they can
@@ -237,8 +242,10 @@ Doing both with the same meter does not double it.
 
 Then nothing has to remember how to count:
 
-    $org->fits('members');
-    $org->usageSummary();
+    $org->quota()->allows('members');
+    $org->quota()->allows('members', 4);   // inviting four at once
+    $org->quota()->get('members')->count();
+    $org->quota()->summary();
 
 **A meter is a class and not a number you pass in**, and that is the whole point. The app
 this came from had a one-seat plan, showed it on the usage screen, and never checked it
@@ -253,9 +260,9 @@ installed would start refusing to create things it was never told to count.
 
 ## Credits in
 
-    $org->depositCredits(5_000, reason: 'purchase', source: $payment);
-    $org->depositCredits(500, reason: 'gift', note: 'launch promo');
-    $org->depositCredits(-200, reason: 'adjustment', note: 'duplicate charge');
+    $org->usage()->deposit(5_000, reason: 'purchase', source: $payment);
+    $org->usage()->deposit(500, reason: 'gift', note: 'launch promo');
+    $org->usage()->deposit(-200, reason: 'adjustment', note: 'duplicate charge');
 
 One call, two tables: the deposit row and the balance move together and cannot be written
 apart. Negative is allowed, which is how a correction is written, and the balance clamps at
@@ -267,8 +274,8 @@ out of session, you buy more usage, you carry on, and your week has not moved me
 
 ## Credits out
 
-    $org->chargeCredits('create_form');                  fixed price by name
-    $org->meterCredits('gpt-4o', 'token', $in, $out);    priced per unit
+    $org->usage()->charge('create_form');                  fixed price by name
+    $org->usage()->meter('gpt-4o', 'token', $in, $out);    priced per unit
 
 Everything is expressed in credits, including the rates:
 
@@ -298,14 +305,20 @@ hand out credits that never reach the balance.
 
 ## Asking
 
-    $org->hasCredits()              may it spend?
-    $org->hasCreditsFor('email')    enough for what that action costs?
-    $org->creditPrice('email')      what it costs
-    $org->creditsRemaining()        headroom plus what was bought
-    $org->creditHeadroom()          the plan only, tightest window
-    $org->creditAllowanceIn('week') what the plan grants there
-    $org->creditsResetAt()          when they can spend again, or null
-    $org->plan()->handle            'pro', or '' when there is none
+    $org->usage()->allows()             may it spend one credit?
+    $org->usage()->allows(250)          may it spend 250?
+    $org->usage()->allows('email')      enough for what that action costs?
+    $org->usage()->price('email')       what it costs
+    $org->usage()->remaining()          headroom plus what was bought
+    $org->usage()->headroom()           the plan only, tightest window
+    $org->usage()->allowanceIn('week')  what the plan grants there
+    $org->usage()->resetsAt()           when it can spend again, or null
+    $org->plan()->handle                'pro', or '' when there is none
+
+`allows()` takes a number of credits or the name of an action, because charging does
+not refuse: an account with nothing left records the overdraft rather than leaving a
+turn half done. If asking first is awkward, nobody asks, and an unchecked ceiling is
+the bug this package exists to stop.
 
 `UsageTracker::hasCreditsMemoized()` answers once per instance, for hot paths that ask
 repeatedly. It does not notice spending that happens afterwards, deliberately: a turn that

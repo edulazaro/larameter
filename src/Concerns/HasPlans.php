@@ -11,6 +11,9 @@ use EduLazaro\Larameter\Plan;
  * Separate from HasCredits because plans are optional: an app selling bundles of
  * credits uses HasCredits alone and none of this exists for it.
  *
+ * It brings one method to read with, plan(), because a trait goes into somebody else's
+ * class and every name it claims there is a name that class can no longer use.
+ *
  * Where a plan comes from is a list of providers, tried in order, first answer wins.
  * The default list is in config, since how billing works has one answer per project.
  * Declare $planProviders on the model, or call setPlanProviders(), only when one model
@@ -50,7 +53,7 @@ trait HasPlans
      *
      * @return array<int, class-string<PlanProvider>>
      */
-    public function planProviders(): array
+    protected function planProviders(): array
     {
         return static::$registeredPlanProviders[static::class]
             ?? (property_exists($this, 'planProviders') ? (array) $this->planProviders : null)
@@ -78,17 +81,6 @@ trait HasPlans
         }
 
         return $this->resolvedPlan = new Plan('');
-    }
-
-    /**
-     * Whether this model is on a given plan.
-     *
-     * @param string $handle
-     * @return bool
-     */
-    public function onPlan(string $handle): bool
-    {
-        return $this->plan()->handle === $handle;
     }
 
     /**

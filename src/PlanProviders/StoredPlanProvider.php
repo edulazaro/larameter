@@ -22,8 +22,8 @@ class StoredPlanProvider implements PlanProvider
      */
     public function provide(Model $model): ?Plan
     {
-        $stored = method_exists($model, 'creditAccount')
-            ? $model->creditAccount()->plan
+        $stored = method_exists($model, 'usage')
+            ? $model->usage()->account()->plan
             : null;
 
         $handle = $stored ?? config('larameter.default_plan');

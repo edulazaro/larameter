@@ -27,4 +27,26 @@ interface Meter
      * @return int
      */
     public function count(): int;
+
+    /**
+     * The ceiling for the current plan. -1 is unlimited.
+     *
+     * @return int
+     */
+    public function limit(): int;
+
+    /**
+     * Whether the plan has room for more.
+     *
+     * @param int $additional
+     * @return bool
+     */
+    public function fits(int $additional = 1): bool;
+
+    /**
+     * The meter as a row for a usage screen.
+     *
+     * @return array{handle: string, label: string, count: int, limit: int}
+     */
+    public function toArray(): array;
 }

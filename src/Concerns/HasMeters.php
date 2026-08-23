@@ -4,6 +4,7 @@ namespace EduLazaro\Larameter\Concerns;
 
 use EduLazaro\Larameter\Attributes\MeteredBy;
 use EduLazaro\Larameter\Contracts\Meter;
+use EduLazaro\Larameter\Quota;
 use ReflectionClass;
 
 /**
@@ -15,6 +16,11 @@ use ReflectionClass;
  *
  * The #[MeteredBy] attribute does the same, and meter() adds one from outside for a
  * model you cannot edit. Declaring the same meter twice does not double it.
+ *
+ * It brings one instance method, quota(), because a trait goes into somebody else's
+ * class and every name it claims there is a name that class can no longer use. This one
+ * learned it the hard way: it used to bring a meters(), which is a fatal error on any
+ * model that also uses Cashier's Billable.
  */
 trait HasMeters
 {
@@ -24,8 +30,8 @@ trait HasMeters
     /** @var array<string, array<int, class-string<Meter>>> Registered at runtime. */
     private static array $registeredMeters = [];
 
-    /** @var array<string, Meter> Resolved once per instance. */
-    private array $meterInstances = [];
+    /** @var Quota|null Resolved once per instance. */
+    private ?Quota $quota = null;
 
     /**
      * Read the #[MeteredBy] attributes. Called by Eloquent when the model boots.
@@ -66,60 +72,26 @@ trait HasMeters
     }
 
     /**
-     * Every meter in effect, keyed by handle.
+     * Ceilings: how many of something exist, and how many the plan allows.
      *
-     * @return array<string, Meter>
+     * @return Quota
      */
-    public function getMeters(): array
+    public function quota(): Quota
     {
-        if ($this->meterInstances !== []) {
-            return $this->meterInstances;
-        }
+        return $this->quota ??= new Quota($this, $this->meterClasses());
+    }
 
-        $classes = array_unique([
+    /**
+     * Every meter declared for this model, however it was declared.
+     *
+     * @return array<int, class-string<Meter>>
+     */
+    protected function meterClasses(): array
+    {
+        return array_unique([
             ...(property_exists($this, 'meters') ? (array) $this->meters : []),
             ...(static::$attributeMeters[static::class] ?? []),
             ...(static::$registeredMeters[static::class] ?? []),
         ]);
-
-        foreach ($classes as $meterClass) {
-            $meter = new $meterClass($this);
-            $this->meterInstances[$meter->handle] = $meter;
-        }
-
-        return $this->meterInstances;
-    }
-
-    /**
-     * One meter by handle.
-     *
-     * @param string $handle
-     * @return Meter|null
-     */
-    public function getMeter(string $handle): ?Meter
-    {
-        return $this->getMeters()[$handle] ?? null;
-    }
-
-    /**
-     * Whether there is room for more of a resource. Unmetered resources are unlimited.
-     *
-     * @param string $handle
-     * @param int $additional
-     * @return bool
-     */
-    public function fits(string $handle, int $additional = 1): bool
-    {
-        return $this->getMeter($handle)?->fits($additional) ?? true;
-    }
-
-    /**
-     * Every meter with its count and ceiling, for a usage screen.
-     *
-     * @return array<int, array{handle: string, label: string, count: int, limit: int}>
-     */
-    public function usageSummary(): array
-    {
-        return array_map(fn (Meter $meter) => $meter->toArray(), array_values($this->getMeters()));
     }
 }

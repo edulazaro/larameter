@@ -73,7 +73,7 @@ class PlanProviderTest extends TestCase
         $fromSubscription = $this->subscriber(price: 'price_pro')->plan();
 
         $stored = $this->subscriber();
-        $stored->setCreditPlan('pro');
+        $stored->usage()->setPlan('pro');
 
         // Same class, same answers. Where a plan came from is the provider's business and
         // stops there: a Plan is a handle, a name, an allowance and some ceilings.
@@ -100,7 +100,7 @@ class PlanProviderTest extends TestCase
     public function test_no_subscription_falls_through_to_what_was_stored(): void
     {
         $model = $this->subscriber();
-        $model->setCreditPlan('max');
+        $model->usage()->setPlan('max');
 
         $this->assertSame('max', $model->plan()->handle);
     }
@@ -114,12 +114,12 @@ class PlanProviderTest extends TestCase
     public function test_the_credits_come_from_the_resolved_plan_and_not_the_stored_column(): void
     {
         $model = $this->subscriber(price: 'price_max');
-        $model->setCreditPlan('free');
+        $model->usage()->setPlan('free');
 
         // The bug this exists to catch: plan() answered 'max' while the allowance came
         // from whatever the stored column said, and nothing anywhere disagreed out loud.
         $this->assertSame('max', $model->plan()->handle);
-        $this->assertSame(50_000, $model->creditHeadroom());
+        $this->assertSame(50_000, $model->usage()->headroom());
     }
 
     public function test_a_model_can_be_billed_differently_from_the_rest(): void

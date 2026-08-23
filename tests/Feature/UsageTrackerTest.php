@@ -108,8 +108,8 @@ class UsageTrackerTest extends TestCase
 
         // Ceilings moved to HasMeters, which counts them itself instead of making the
         // caller pass a number it might forget to work out.
-        $this->assertTrue($org->fits('members'));
-        $this->assertTrue($org->fits('anything_with_no_meter'));
+        $this->assertTrue($org->quota()->allows('members'));
+        $this->assertTrue($org->quota()->allows('anything_with_no_meter'));
     }
 
     public function test_the_memo_answers_once_and_does_not_notice_later_spending(): void

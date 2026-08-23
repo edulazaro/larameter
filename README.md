@@ -157,11 +157,16 @@ The override beats the subscription on purpose: a person decided it and Stripe s
 undo it. Cashier is detected and never required, so an app with no subscriptions only ever
 reaches the third source and pays nothing for the other two.
 
-    $org->plan();                    // a Plan, never null
+    $org->plan();                        // a Plan, never null
+    $org->plan()->exists();              // false when there is no plan at all
+    $org->plan()->key();                 // 'pro'
     $org->plan()->name();
-    $org->creditPlan();              // 'pro', or null
+    $org->plan()->allows('api_access');  // absent means no
     $org->onPlan('pro');
-    $org->planAllows('api_access');  // absent means no
+
+One door. `plan()` never returns null, so nothing needs a null check: an account on no plan
+gets one that grants no credits, no features and no ceilings, and `exists()` is how you
+tell that apart from a plan that happens to grant little.
 
 This is why there is no line in your app wiring a resolver to an account. That line is
 where a plan change gets forgotten.

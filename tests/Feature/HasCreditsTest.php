@@ -50,13 +50,13 @@ class HasCreditsTest extends TestCase
     {
         $org = Organization::create(['name' => 'Acme']);
 
-        $this->assertSame('free', $org->creditPlan());
+        $this->assertSame('free', $org->plan()->key());
 
         // From a Cashier subscription observer, a grant, an admin action. The package
         // cannot know, so it does not try.
         $org->setCreditPlan('pro');
 
-        $this->assertSame('pro', $org->creditPlan());
+        $this->assertSame('pro', $org->plan()->key());
         $this->assertSame(500, $org->creditHeadroom());
 
         $org->setCreditPlan(null);

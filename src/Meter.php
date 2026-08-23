@@ -89,8 +89,8 @@ abstract class Meter implements MeterContract
 
     protected function planKey(): ?string
     {
-        return method_exists($this->meterable, 'creditPlan')
-            ? $this->meterable->creditPlan()
+        return method_exists($this->meterable, 'plan')
+            ? $this->meterable->plan()->key()
             : null;
     }
 }

@@ -23,6 +23,18 @@ class Plan
         return $this->key;
     }
 
+    /**
+     * Whether there is a plan at all.
+     *
+     * plan() never returns null, so nothing downstream needs a null check: an account on
+     * no plan gets one that grants no credits, no features and no ceilings. This is how
+     * you tell that apart from a plan that happens to grant little.
+     */
+    public function exists(): bool
+    {
+        return $this->key !== '';
+    }
+
     public function name(): string
     {
         return (string) ($this->config['name'] ?? $this->key);

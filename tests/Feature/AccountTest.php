@@ -117,7 +117,7 @@ class AccountTest extends TestCase
 
         $org = $this->org();
 
-        $this->assertNull($org->creditPlan());
+        $this->assertFalse($org->plan()->exists());
         $this->assertSame(0, $org->creditsRemaining());
         $this->assertFalse($org->hasCredits());
 

@@ -120,14 +120,9 @@ trait HasCredits
         return $this->resolvedPlan ??= app(PlanResolver::class)->resolve($this);
     }
 
-    public function creditPlan(): ?string
-    {
-        return $this->plan()->key() ?: null;
-    }
-
     public function onPlan(string $key): bool
     {
-        return $this->creditPlan() === $key;
+        return $this->plan()->key() === $key;
     }
 
     /** Forget the resolved plan, after a subscription changes mid-request. */
@@ -180,12 +175,6 @@ trait HasCredits
         array $metadata = [],
     ): Deposit {
         return $this->creditAccount()->deposit($credits, $reason, $source, $note, $metadata);
-    }
-
-    /** Whether this account's plan includes a feature. Absent means no. */
-    public function planAllows(string $feature): bool
-    {
-        return $this->plan()->allows($feature);
     }
 
     // ─── Ceilings ───────────────────────────────────────────────────

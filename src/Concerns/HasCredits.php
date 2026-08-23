@@ -6,8 +6,6 @@ use EduLazaro\Larameter\UsageTracker;
 use EduLazaro\Larameter\Models\Account;
 use EduLazaro\Larameter\Models\Deposit;
 use EduLazaro\Larameter\Models\UsageRecord;
-use EduLazaro\Larameter\Plan;
-use EduLazaro\Larameter\PlanResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
@@ -27,8 +25,6 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  */
 trait HasCredits
 {
-    private ?Plan $resolvedPlan = null;
-
     /**
      * The account row, for eager loading. Null until this model has one.
      *
@@ -42,9 +38,18 @@ trait HasCredits
     /** The account, created on first sight. Nothing has to be provisioned up front. */
     public function creditAccount(): Account
     {
-        return $this->relationLoaded('meterAccount') && $this->meterAccount
+        $account = $this->relationLoaded('meterAccount') && $this->meterAccount
             ? $this->meterAccount
             : Account::for($this);
+
+        // We are the meterable, so hand it over rather than letting the account go and
+        // fetch it. Without this, reading a balance costs a query per account and the
+        // with() a listing wrote to avoid exactly that stops working.
+        if (! $account->relationLoaded('meterable')) {
+            $account->setRelation('meterable', $this);
+        }
+
+        return $account;
     }
 
     public function creditUsage()
@@ -112,25 +117,6 @@ trait HasCredits
 
     // ─── Plan and top-ups ───────────────────────────────────────────
 
-    /** The plan, resolved: an override, then the subscription, then what was stored. */
-    public function plan(): Plan
-    {
-        // Memoised per instance: resolving asks Cashier, and this gets called several
-        // times in a request.
-        return $this->resolvedPlan ??= app(PlanResolver::class)->resolve($this);
-    }
-
-    public function onPlan(string $key): bool
-    {
-        return $this->plan()->key() === $key;
-    }
-
-    /** Forget the resolved plan, after a subscription changes mid-request. */
-    public function forgetPlan(): void
-    {
-        $this->resolvedPlan = null;
-    }
-
     /**
      * Store a plan on the account.
      *
@@ -141,7 +127,13 @@ trait HasCredits
     public function setCreditPlan(?string $key): void
     {
         $this->creditAccount()->setPlan($key);
-        $this->forgetPlan();
+
+        // Only when HasPlans is on the model too: whatever it resolved a moment ago is
+        // now stale, and without this the rest of the request keeps charging against the
+        // old allowance.
+        if (method_exists($this, 'forgetPlan')) {
+            $this->forgetPlan();
+        }
     }
 
     /**

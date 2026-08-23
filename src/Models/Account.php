@@ -2,6 +2,7 @@
 
 namespace EduLazaro\Larameter\Models;
 
+use EduLazaro\Larameter\Plan;
 use EduLazaro\Larameter\Plans;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -39,6 +40,9 @@ class Account extends Model
     protected $casts = [
         'purchased_credits' => 'integer',
     ];
+
+    /** Memoised: headroom is asked several times per request and resolving can hit Stripe. */
+    private ?Plan $cachedPlan = null;
 
     /** Whatever you bill: an organisation, a user, a workspace. */
     public function meterable(): MorphTo
@@ -87,6 +91,31 @@ class Account extends Model
         }
     }
 
+    /**
+     * The plan whose allowance this account spends.
+     *
+     * Asks the thing being metered first, because with HasPlans on it the plan is worked
+     * out from a subscription or an override and the stored column is only a fallback.
+     * Reading the column here regardless was a real bug: plan() answered 'pro' while the
+     * credits came from whatever 'free' granted, and nothing said so.
+     *
+     * The stored column is still the answer for a model with no plans at all.
+     */
+    public function planFor(): Plan
+    {
+        if ($this->cachedPlan !== null) {
+            return $this->cachedPlan;
+        }
+
+        $meterable = $this->meterable;
+
+        if ($meterable && method_exists($meterable, 'plan')) {
+            return $this->cachedPlan = $meterable->plan();
+        }
+
+        return $this->cachedPlan = Plans::find($this->plan_key);
+    }
+
     // ─── Reading ────────────────────────────────────────────────────
 
     /**
@@ -115,7 +144,7 @@ class Account extends Model
             // and nowhere near the config that caused it.
             Window::lengthOf($key);
 
-            $allowance = Plans::creditsIn($this->plan_key, $key);
+            $allowance = $this->planFor()->credits($key);
 
             if ($allowance < 0) {
                 continue;
@@ -152,7 +181,7 @@ class Account extends Model
         }
 
         return $this->windows
-            ->filter(fn (Window $w) => Plans::creditsIn($this->plan_key, $w->key) >= 0)
+            ->filter(fn (Window $w) => $this->planFor()->credits($w->key) >= 0)
             ->map(fn (Window $w) => $w->endsAt())
             ->sort()
             ->first();
@@ -248,6 +277,7 @@ class Account extends Model
     public function setPlan(?string $key): void
     {
         $this->plan_key = $key;
+        $this->cachedPlan = null;
         $this->save();
     }
 

@@ -107,20 +107,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Working out which plan an account is on
+    | Where a plan comes from
     |--------------------------------------------------------------------------
-    | Three sources, in this order, and the order is the logic:
+    | Providers, tried in order, first answer wins. Only models using the HasPlans trait
+    | ever ask, so an app that sells credit bundles and nothing else never runs any of it.
     |
-    |   1. `override_column` on the model, for courtesy accounts, demos and partners. It
-    |      beats the subscription on purpose: a person decided it and Stripe should not
-    |      undo it. Null to switch that off.
-    |   2. The Cashier subscription, matched by the price id under `price_id_key`. Cashier
-    |      is detected, never required: without it this step is skipped.
-    |   3. Whatever setCreditPlan() stored, then `default_plan`.
+    | The order IS the policy. ForcedPlanProvider before CashierPlanProvider means a plan
+    | somebody set by hand beats what Stripe thinks, which is what you want for a courtesy
+    | account or a partner: a person decided it deliberately.
     |
-    | An app that sells credit bundles and no subscriptions only ever reaches step 3, and
-    | none of this costs it anything.
+    | CashierPlanProvider is inert without Cashier installed, so leaving it here costs
+    | nothing. Write your own for Paddle, LemonSqueezy or anything else: implement
+    | Contracts\PlanProvider and put it in the list.
+    |
+    | One list for the whole app, because how billing works has one answer per project.
+    | Set $planProviders on a model, or call Model::setPlanProviders(), only when one
+    | model is billed differently from another.
     */
+
+    'plan_providers' => [
+        \EduLazaro\Larameter\PlanProviders\ForcedPlanProvider::class,
+        \EduLazaro\Larameter\PlanProviders\CashierPlanProvider::class,
+        \EduLazaro\Larameter\PlanProviders\StoredPlanProvider::class,
+    ],
+
+    // Read by ForcedPlanProvider: a column of YOURS holding a plan key set by hand.
+    // Null switches that provider off.
 
     'override_column' => null,
     'price_id_key' => 'stripe_price_id',

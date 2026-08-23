@@ -3,6 +3,7 @@
 namespace EduLazaro\Larameter;
 
 use EduLazaro\Larameter\Contracts\Meter as MeterContract;
+use EduLazaro\Larameter\Plan;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -65,7 +66,7 @@ abstract class Meter implements MeterContract
     /** The ceiling for this account's plan. -1 is unlimited. */
     public function limit(): int
     {
-        return Plans::limit($this->planKey(), $this->key());
+        return $this->plan()->limit($this->key());
     }
 
     /** Whether one more may be created. */
@@ -87,10 +88,11 @@ abstract class Meter implements MeterContract
         ];
     }
 
-    protected function planKey(): ?string
+    /** Whatever plan the thing being metered is on. Never null, so no null checks. */
+    protected function plan(): Plan
     {
         return method_exists($this->meterable, 'plan')
-            ? $this->meterable->plan()->key()
-            : null;
+            ? $this->meterable->plan()
+            : new Plan('');
     }
 }

@@ -147,29 +147,39 @@ a plan stays next to the metered half:
         ],
     ],
 
-**Which plan an account is on is worked out, not stored.** Three sources, in this order:
+**Which plan an account is on is worked out, not stored.** Add `HasPlans` and it is
+resolved by a list of providers, tried in order, first answer wins:
 
-    override_column      a courtesy account, a demo, a partner
-    Cashier subscription matched by price id
-    what was stored      setCreditPlan(), then default_plan
+    'plan_providers' => [
+        PlanProviders\ForcedPlanProvider::class,    // a column of yours, set by hand
+        PlanProviders\CashierPlanProvider::class,   // the subscription, by price id
+        PlanProviders\StoredPlanProvider::class,    // setCreditPlan(), then the default
+    ],
 
-The override beats the subscription on purpose: a person decided it and Stripe should not
-undo it. Cashier is detected and never required, so an app with no subscriptions only ever
-reaches the third source and pays nothing for the other two.
+**The order is the policy.** Forced before Cashier means a plan somebody set by hand for a
+partner or a demo beats what Stripe thinks, because a person decided it deliberately.
+
+`CashierPlanProvider` is inert without Cashier installed, so leaving it in the list costs
+an app that sells credit bundles nothing. For Paddle or anything else, implement
+`Contracts\PlanProvider` and add it to the list.
+
+One list for the whole app, because how billing works has one answer per project. Put
+`$planProviders` on a model, or call `Model::setPlanProviders()`, only when one model is
+billed differently from another.
 
     $org->plan();                        // a Plan, never null
-    $org->plan()->exists();              // false when there is no plan at all
-    $org->plan()->key();                 // 'pro'
-    $org->plan()->name();
-    $org->plan()->allows('api_access');  // absent means no
+    $org->plan()->exists();              // false when no provider answered
+    $org->plan()->allows('api_access');
     $org->onPlan('pro');
 
-One door. `plan()` never returns null, so nothing needs a null check: an account on no plan
-gets one that grants no credits, no features and no ceilings, and `exists()` is how you
-tell that apart from a plan that happens to grant little.
+**A plan knows where it came from.** `CashierPlanProvider` returns a `CashierPlan`, which
+answers everything a plain `Plan` does plus `renewsAt()`, `onTrial()` and `subscription()`.
+That is what lets the billing windows line up with the invoice rather than with whenever
+somebody first used the thing. Nothing should ever need `instanceof CashierPlan`: if it
+does, `Plan` is missing a method.
 
-This is why there is no line in your app wiring a resolver to an account. That line is
-where a plan change gets forgotten.
+**Plans are optional.** `HasCredits` alone is an app that sells bundles: no plan, no
+allowance, everything from what was purchased.
 
 `setCreditPlan()` remains for the case nothing can resolve: no override column, no
 subscription. It is the fallback, not the source.

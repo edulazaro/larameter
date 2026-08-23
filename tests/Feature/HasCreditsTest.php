@@ -59,9 +59,11 @@ class HasCreditsTest extends TestCase
         $this->assertSame('pro', $org->plan()->key());
         $this->assertSame(500, $org->creditHeadroom());
 
+        // Clearing the stored key does not mean "no plan": it means stop forcing one, so
+        // whatever resolves next decides. With no subscription that is the default.
         $org->setCreditPlan(null);
 
-        $this->assertSame(0, $org->creditHeadroom());
+        $this->assertTrue($org->onPlan('free'));
     }
 
     public function test_buying_credits_adds_to_a_bucket_no_window_can_touch(): void

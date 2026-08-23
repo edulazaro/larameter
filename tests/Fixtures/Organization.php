@@ -3,6 +3,7 @@
 namespace EduLazaro\Larameter\Tests\Fixtures;
 
 use EduLazaro\Larameter\Concerns\HasCredits;
+use EduLazaro\Larameter\Concerns\HasPlans;
 use EduLazaro\Larameter\Concerns\HasMeters;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Organization extends Model
 {
     use HasCredits;
+    use HasPlans;
     use HasMeters;
 
     protected $table = 'organizations';

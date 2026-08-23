@@ -1,0 +1,49 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('laracredits_usage', function (Blueprint $table) {
+            $table->id();
+
+            // Who is billed. Morphs, so the package never learns what you call a tenant.
+            $table->morphs('account');
+
+            // Who triggered it, when somebody did. Null for scheduled work.
+            $table->nullableMorphs('actor');
+
+            // What it was about: a case, a document, a conversation. For tracing spend
+            // back to the thing that caused it.
+            $table->nullableMorphs('subject');
+
+            $table->string('operation');
+
+            // 'action' for a fixed price, or the metered unit: token, minute, page.
+            $table->string('unit')->default('action');
+            $table->unsignedBigInteger('quantity_in')->default(0);
+            $table->unsignedBigInteger('quantity_out')->default(0);
+
+            // What it cost the account, and what it cost you. The second is nullable
+            // because plenty of chargeable actions have no external bill behind them.
+            $table->unsignedInteger('credits')->default(0);
+            $table->decimal('cost', 12, 6)->nullable();
+
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+
+            // The balance is this table summed over a window, so this index is not an
+            // optimisation, it is what makes the design viable.
+            $table->index(['account_type', 'account_id', 'created_at']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('laracredits_usage');
+    }
+};

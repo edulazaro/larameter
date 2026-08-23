@@ -1,0 +1,40 @@
+{
+    "name": "edulazaro/laracredits",
+    "description": "Credit metering and plan limits for Laravel: charge per action or per token, cap by month and week, and stop a call before it spends what an account no longer has. Nothing to do with AI in particular.",
+    "license": "MIT",
+    "type": "library",
+    "keywords": ["laravel", "credits", "usage", "metering", "quota", "billing", "plans"],
+    "require": {
+        "php": ">=8.2",
+        "laravel/framework": ">=12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "EduLazaro\\Laracredits\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "EduLazaro\\Laracredits\\Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Edu Lazaro",
+            "email": "edu@edulazaro.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "EduLazaro\\Laracredits\\LaracreditsServiceProvider"
+            ]
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "orchestra/testbench": "^10.0"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -11,8 +11,7 @@
         "quota",
         "billing",
         "plans",
-        "limits",
-        "subscriptions"
+        "limits"
     ],
     "require": {
         "php": ">=8.2",

@@ -108,7 +108,19 @@ class CreditMeter
 
     public function account(Model $meterable): Account
     {
-        return $meterable instanceof Account ? $meterable : Account::for($meterable);
+        if ($meterable instanceof Account) {
+            return $meterable;
+        }
+
+        // Through the trait when there is one, so an eagerly loaded relation is used
+        // instead of queried again. Without this a listing that shows the balance for
+        // fifty accounts runs a hundred queries, and the with() the caller wrote to
+        // avoid exactly that does nothing.
+        if (method_exists($meterable, 'creditAccount')) {
+            return $meterable->creditAccount();
+        }
+
+        return Account::for($meterable);
     }
 
     /** What the PLAN still allows, in whichever window is tightest. Purchased not counted. */

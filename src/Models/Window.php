@@ -150,6 +150,39 @@ class Window extends Model
 
             return;
         }
+        $this->started_at = $this->currentStart();
+    }
+
+    /**
+     * When the window running now starts over, or null when none is running.
+     *
+     * Not the same as endsAt() once a fixed window has expired: the grid has gone on
+     * without it, so the row says a Monday three weeks ago while the answer the screen
+     * needs is the Monday coming. A rolling one is not running at all until the next
+     * charge, so it has no end yet.
+     *
+     * @return Carbon|null
+     */
+    public function currentEndsAt(): ?Carbon
+    {
+        if (! $this->isExpired()) {
+            return $this->endsAt();
+        }
+
+        if (static::anchorOf($this->key) === 'rolling') {
+            return null;
+        }
+
+        return $this->currentStart()->add(static::lengthOf($this->key));
+    }
+
+    /**
+     * The start of the slot on the grid that contains now.
+     *
+     * @return Carbon
+     */
+    protected function currentStart(): Carbon
+    {
         $length = static::lengthOf($this->key);
         $start = $this->started_at->copy();
 
@@ -157,6 +190,6 @@ class Window extends Model
             $start->add($length);
         }
 
-        $this->started_at = $start;
+        return $start;
     }
 }

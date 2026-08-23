@@ -56,7 +56,20 @@ and `months`, combined. A window with no `share` narrows nothing.
 
 **Asking never opens a window.** For a rolling window the row is the clock, so an expired
 one is reported as full without being restarted. Otherwise opening the app to check your
-balance would burn the session before a word was typed.
+balance would burn the session before a word was typed. That holds for reading them too:
+
+    foreach ($org->usage()->windows() as $window) {
+        $window->key;            // 'weekly'
+        $window->allowance();    // 12_500
+        $window->used();         // 12_000
+        $window->remaining();    // 500
+        $window->percentUsed();  // 96.0
+        $window->endsAt();       // the Monday coming, or null if none is running
+    }
+
+`endsAt()` is not what the row says once a fixed window has expired. The grid went on
+without it, so a row claiming a Monday three weeks back answers with the Monday ahead,
+which is the only answer a screen can show.
 
 Declare no windows at all and you have opted out of allowance metering: usage is still
 recorded, nothing is refused, and only purchased credits mean anything.
@@ -305,6 +318,8 @@ hand out credits that never reach the balance.
 
 ## Asking
 
+    $org->usage()->in('weekly')         one window: allowance, used, remaining, endsAt
+    $org->usage()->windows()            all of them, which is a usage screen
     $org->usage()->allows()             may it spend one credit?
     $org->usage()->allows(250)          may it spend 250?
     $org->usage()->allows('email')      enough for what that action costs?

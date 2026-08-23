@@ -5,6 +5,7 @@ namespace EduLazaro\Larameter;
 use EduLazaro\Larameter\Models\Account;
 use EduLazaro\Larameter\Models\Deposit;
 use EduLazaro\Larameter\Models\UsageRecord;
+use EduLazaro\Larameter\Models\Window;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -109,6 +110,58 @@ class Usage
     public function allowanceIn(string $window): int
     {
         return $this->account()->plan()->creditsIn($window);
+    }
+
+    /**
+     * One window: what the plan grants there, what has gone, and when it starts over.
+     *
+     * @param string $window
+     * @return WindowUsage
+     * @throws \InvalidArgumentException When no such window is declared.
+     */
+    public function in(string $window): WindowUsage
+    {
+        $windows = $this->windows();
+
+        if (! array_key_exists($window, $windows)) {
+            $declared = implode(', ', array_keys(Window::declared())) ?: 'none';
+
+            throw new \InvalidArgumentException(
+                "larameter: no window [{$window}] is declared. There is: {$declared}.",
+            );
+        }
+
+        return $windows[$window];
+    }
+
+    /**
+     * Every declared window, keyed by its key. What a usage screen iterates.
+     *
+     * Opens nothing: a window nobody has spent against yet reports its full allowance
+     * and no end date, rather than having its clock started by being looked at.
+     *
+     * @return array<string, WindowUsage>
+     */
+    public function windows(): array
+    {
+        $account = $this->account();
+        $rows = $account->windows->keyBy('key');
+        $plan = $account->plan();
+
+        $windows = [];
+
+        foreach (array_keys(Window::declared()) as $key) {
+            $row = $rows->get($key);
+
+            $windows[$key] = new WindowUsage(
+                $key,
+                $plan->creditsIn($key),
+                $row?->currentUsage() ?? 0,
+                $row?->currentEndsAt(),
+            );
+        }
+
+        return $windows;
     }
 
     /**

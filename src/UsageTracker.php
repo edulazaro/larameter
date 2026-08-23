@@ -93,7 +93,6 @@ class UsageTracker
             'quantity_in' => $quantityIn,
             'quantity_out' => $quantityOut,
             'credits' => $this->creditsFor($rate, $quantityIn, $quantityOut),
-            'cost' => $this->costFor($rate, $quantityIn, $quantityOut),
             'metadata' => $metadata ?: null,
         ]);
     }
@@ -193,7 +192,7 @@ class UsageTracker
     /**
      * Credits for a quantity, at the given rate.
      *
-     * @param array<string, mixed>|null $rate
+     * @param array<string, int>|null $rate
      * @param int $in
      * @param int $out
      * @return int
@@ -204,26 +203,11 @@ class UsageTracker
             return max(1, (int) ceil(($in + $out) / (int) config('larameter.fallback_units_per_credit', 100)));
         }
 
-        return max(1, (int) ceil($this->costFor($rate, $in, $out) * (int) config('larameter.credits_per_unit_cost', 10000)));
-    }
-
-    /**
-     * What a quantity cost you, at the given rate.
-     *
-     * @param array<string, mixed>|null $rate
-     * @param int $in
-     * @param int $out
-     * @return float
-     */
-    private function costFor(?array $rate, int $in, int $out): float
-    {
-        if (! $rate) {
-            return 0.0;
-        }
-
         $per = (int) ($rate['per'] ?? 1_000_000);
 
-        return ($in / $per) * (float) ($rate['in'] ?? 0)
-            + ($out / $per) * (float) ($rate['out'] ?? 0);
+        $credits = ($in / $per) * (float) ($rate['input'] ?? 0)
+            + ($out / $per) * (float) ($rate['output'] ?? 0);
+
+        return max(1, (int) ceil($credits));
     }
 }

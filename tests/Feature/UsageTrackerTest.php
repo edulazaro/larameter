@@ -50,14 +50,13 @@ class UsageTrackerTest extends TestCase
     public function test_metered_units_are_priced_by_operation(): void
     {
         config()->set('larameter.rates', [
-            'gpt-4o' => ['in' => 2.50, 'out' => 10.00, 'per' => 1_000_000],
+            'gpt-4o' => ['input' => 25_000, 'output' => 100_000, 'per' => 1_000_000],
         ]);
 
         $record = $this->meter->meter($this->org(), 'gpt-4o', 'token', 1_000_000, 1_000_000);
 
-        // 2.50 + 10.00 = 12.50 USD, at 10000 credits per unit of cost.
+        // 25.000 in + 100.000 out, one million tokens of each.
         $this->assertSame(125_000, $record->credits);
-        $this->assertSame('12.500000', $record->cost);
     }
 
     public function test_a_model_name_with_a_dot_is_not_split_by_config_dot_notation(): void
@@ -66,8 +65,8 @@ class UsageTrackerTest extends TestCase
         // finds nothing, falls through to the wildcard and undercharges. It only ever
         // shows up on the provider's invoice.
         config()->set('larameter.rates', [
-            'gpt-5.4' => ['in' => 100.00, 'out' => 100.00, 'per' => 1_000_000],
-            '*' => ['in' => 0.01, 'out' => 0.01, 'per' => 1_000_000],
+            'gpt-5.4' => ['input' => 1_000_000, 'output' => 1_000_000, 'per' => 1_000_000],
+            '*' => ['input' => 100, 'output' => 100, 'per' => 1_000_000],
         ]);
 
         $record = $this->meter->meter($this->org(), 'gpt-5.4', 'token', 1_000_000);

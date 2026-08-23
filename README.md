@@ -276,9 +276,18 @@ out of session, you buy more usage, you carry on, and your week has not moved me
     $org->chargeCredits('create_form');                  fixed price by name
     $org->meterCredits('gpt-4o', 'token', $in, $out);    priced per unit
 
+Everything is expressed in credits, including the rates:
+
+    'rates' => [
+        'gpt-4o' => ['input' => 25_000, 'output' => 100_000, 'per' => 1_000_000],
+    ],
+
+25,000 credits per million input tokens. What a credit is worth in money is your business
+and the package never asks.
+
 An action you never priced is **free**, not guessed at. A metered unit you never priced
 still costs something, because the alternative is that metering an unknown model is free
-and the gap only surfaces on your provider's invoice.
+and the gap only surfaces on your provider's bill.
 
 Rates are indexed directly and not through dot notation, so a model with a dot in its name
 (`gpt-5.4`) is priced as itself rather than silently falling through to the wildcard.

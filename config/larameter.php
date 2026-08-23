@@ -155,29 +155,26 @@ return [
     |--------------------------------------------------------------------------
     | Metered rates
     |--------------------------------------------------------------------------
-    | Cost of what you meter, by the name of the thing being priced. For an LLM call that
-    | is the model, so this table reads the way the providers publish theirs.
+    | What a metered unit costs in credits, by the name of the thing being priced. For a
+    | model call that is the model, so this table reads the way the providers publish
+    | theirs.
     |
-    | `in` and `out` are the price of what goes in and what comes back, and `per` is how
-    | many units those prices refer to. Providers quote per million tokens, so you copy
-    | their numbers unchanged.
+    | `input` and `output` are the credits for what goes in and what comes back, and
+    | `per` is how many units those figures refer to. Providers quote per million tokens,
+    | so write the credits you charge for a million.
     |
     | '*' is the fallback for anything not listed.
     |
     | Keys are indexed directly, NOT through dot notation: a name with a dot in it
     | (gpt-5.4) gets split by config() and silently falls through to the fallback, which
-    | undercharges and only shows up on the provider's invoice.
+    | undercharges and only shows up on the provider's bill.
     */
 
     'rates' => [
-        // 'gpt-4o'      => ['in' => 2.50, 'out' => 10.00, 'per' => 1_000_000],
-        // 'gpt-4o-mini' => ['in' => 0.15, 'out' => 0.60,  'per' => 1_000_000],
-        // '*'           => ['in' => 5.00, 'out' => 15.00, 'per' => 1_000_000],
+        // 'gpt-4o'      => ['input' => 25_000, 'output' => 100_000, 'per' => 1_000_000],
+        // 'gpt-4o-mini' => ['input' => 1_500,  'output' => 6_000,   'per' => 1_000_000],
+        // '*'           => ['input' => 50_000, 'output' => 150_000, 'per' => 1_000_000],
     ],
-
-    // How many credits one unit of cost buys. With cost in USD, 10000 makes a credit a
-    // hundredth of a cent.
-    'credits_per_unit_cost' => 10000,
 
     // What an unpriced unit costs, so metering an unknown model is not free. The gap would
     // otherwise only surface on the provider's invoice.

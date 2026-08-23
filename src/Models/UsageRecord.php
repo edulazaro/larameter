@@ -33,7 +33,6 @@ class UsageRecord extends Model
         'credits',
         'credits_from_plan',
         'credits_from_purchased',
-        'cost',
         'metadata',
     ];
 
@@ -43,7 +42,6 @@ class UsageRecord extends Model
         'credits' => 'integer',
         'credits_from_plan' => 'integer',
         'credits_from_purchased' => 'integer',
-        'cost' => 'decimal:6',
         'metadata' => 'array',
     ];
 

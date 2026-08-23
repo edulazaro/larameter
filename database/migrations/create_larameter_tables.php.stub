@@ -143,10 +143,6 @@ return new class extends Migration
             $table->unsignedInteger('credits_from_plan')->default(0);
             $table->unsignedInteger('credits_from_purchased')->default(0);
 
-            // What it cost YOU. Nullable: plenty of chargeable actions have no external
-            // bill behind them.
-            $table->decimal('cost', 12, 6)->nullable();
-
             $table->json('metadata')->nullable();
             $table->timestamps();
 

@@ -176,7 +176,12 @@ List it on the model:
         protected array $meters = [MemberMeter::class, CaseMeter::class];
     }
 
-A plain list and not a map, because a meter already knows its own key.
+A plain list and not a map, because a meter already knows its own key. Or with the
+attribute, the same shape larakeep uses for keepers:
+
+    #[MeteredBy(MemberMeter::class)]
+    #[MeteredBy(CaseMeter::class)]
+    class Organization extends Model
 
 For a model you cannot edit, a module bringing its own relation, or a meter that only
 applies when something is switched on, there is the other half of the pair:

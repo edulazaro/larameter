@@ -8,6 +8,7 @@ use EduLazaro\Larameter\Tests\Fixtures\Member;
 use EduLazaro\Larameter\Tests\Fixtures\MemberMeter;
 use EduLazaro\Larameter\Tests\Fixtures\Organization;
 use EduLazaro\Larameter\Tests\Fixtures\ProjectMeter;
+use EduLazaro\Larameter\Tests\Fixtures\Workspace;
 use EduLazaro\Larameter\Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -29,6 +30,7 @@ class MeterTest extends TestCase
         parent::setUp();
 
         Organization::flushRegisteredMeters();
+        Workspace::flushRegisteredMeters();
     }
 
     private function org(array $limits = ['members' => 2, 'cases' => -1]): Organization
@@ -121,6 +123,28 @@ class MeterTest extends TestCase
         Organization::meter(MemberMeter::class);
 
         $this->assertCount(2, $this->org()->meters());
+    }
+
+    public function test_the_attribute_declares_the_same_as_the_property(): void
+    {
+        config()->set('larameter.plans', ['free' => ['limits' => ['members' => 5]]]);
+        config()->set('larameter.default_plan', 'free');
+
+        $workspace = Workspace::create(['name' => 'Acme']);
+
+        $this->assertInstanceOf(MemberMeter::class, $workspace->meterFor('members'));
+        $this->assertTrue($workspace->canCreate('members'));
+    }
+
+    public function test_all_three_ways_combine_without_doubling(): void
+    {
+        Organization::meter(ProjectMeter::class);
+        Organization::meter(MemberMeter::class);
+
+        $keys = array_keys($this->org()->meters());
+
+        sort($keys);
+        $this->assertSame(['cases', 'members', 'projects'], $keys);
     }
 
     public function test_something_registered_from_outside_joins_the_declared_ones(): void

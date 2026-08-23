@@ -2,7 +2,9 @@
 
 namespace EduLazaro\Larameter\Concerns;
 
+use EduLazaro\Larameter\Attributes\MeteredBy;
 use EduLazaro\Larameter\Contracts\Meter;
+use ReflectionClass;
 
 /**
  * Put this on the model a plan caps, and list its meters:
@@ -16,6 +18,9 @@ use EduLazaro\Larameter\Contracts\Meter;
  *
  * A plain list and not a map, because a meter already knows its own key.
  *
+ * Three ways in, and they combine: the $meters property, the #[MeteredBy] attribute, and
+ * meter() from outside. Declaring the same meter twice does not double it.
+ *
  * Then nothing has to remember how to count:
  *
  *     $org->canCreate('members');
@@ -23,6 +28,14 @@ use EduLazaro\Larameter\Contracts\Meter;
  */
 trait HasMeters
 {
+    /**
+     * From #[MeteredBy], read once per model. Kept apart from the ones registered at
+     * runtime so that flushing those does not also erase what the class declares.
+     *
+     * @var array<string, array<int, class-string<Meter>>>
+     */
+    private static array $attributeMeters = [];
+
     /**
      * Registered from outside the class, keyed by model so subclasses do not share.
      *
@@ -32,6 +45,20 @@ trait HasMeters
 
     /** @var array<string, Meter> Resolved for this instance only. */
     private array $meterInstances = [];
+
+    /**
+     * Read the attributes, once per model, the first time Eloquent boots it.
+     *
+     * Named bootHasMeters so Eloquent's own trait booting picks it up. Same mechanism as
+     * larakeep uses for #[KeptBy].
+     */
+    public static function bootHasMeters(): void
+    {
+        static::$attributeMeters[static::class] = array_map(
+            fn ($attribute) => $attribute->newInstance()->meterClass,
+            (new ReflectionClass(static::class))->getAttributes(MeteredBy::class),
+        );
+    }
 
     /**
      * Add a meter to a model you cannot edit: a module that brings its own relation and
@@ -68,8 +95,11 @@ trait HasMeters
             return $this->meterInstances;
         }
 
-        $declared = property_exists($this, 'meters') ? (array) $this->meters : [];
-        $classes = array_unique([...$declared, ...(static::$registeredMeters[static::class] ?? [])]);
+        $classes = array_unique([
+            ...(property_exists($this, 'meters') ? (array) $this->meters : []),
+            ...(static::$attributeMeters[static::class] ?? []),
+            ...(static::$registeredMeters[static::class] ?? []),
+        ]);
 
         foreach ($classes as $meterClass) {
             $meter = new $meterClass($this);

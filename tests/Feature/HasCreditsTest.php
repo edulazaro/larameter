@@ -18,9 +18,10 @@ class HasCreditsTest extends TestCase
     {
         parent::setUp();
 
+        config()->set('larameter.windows', ['week' => ['days' => 7, 'anchor' => 'fixed']]);
         config()->set('larameter.plans', [
-            'free' => ['credits_monthly' => 10],
-            'pro' => ['credits_monthly' => 500],
+            'free' => ['credits' => ['week' => 10]],
+            'pro' => ['credits' => ['week' => 500]],
         ]);
         config()->set('larameter.default_plan', 'free');
         config()->set('larameter.prices', ['create_form' => 3]);
@@ -31,7 +32,7 @@ class HasCreditsTest extends TestCase
         $org = Organization::create(['name' => 'Acme']);
 
         $this->assertTrue($org->hasCredits());
-        $this->assertSame(10, $org->creditBudget());
+        $this->assertSame(10, $org->creditAllowanceIn('week'));
         $this->assertSame(10, $org->creditsRemaining());
 
         $org->chargeCredits('create_form');
@@ -56,18 +57,18 @@ class HasCreditsTest extends TestCase
         $org->setCreditPlan('pro');
 
         $this->assertSame('pro', $org->creditPlan());
-        $this->assertSame(500, $org->creditBudget());
+        $this->assertSame(500, $org->creditHeadroom());
 
         $org->setCreditPlan(null);
 
-        $this->assertSame(0, $org->creditBudget());
+        $this->assertSame(0, $org->creditHeadroom());
     }
 
-    public function test_buying_credits_adds_to_a_bucket_the_plan_cannot_touch(): void
+    public function test_buying_credits_adds_to_a_bucket_no_window_can_touch(): void
     {
         $org = Organization::create(['name' => 'Acme']);
 
-        $org->addCredits(1_000);
+        $org->depositCredits(1_000);
 
         $this->assertSame(1_010, $org->creditsRemaining());
     }

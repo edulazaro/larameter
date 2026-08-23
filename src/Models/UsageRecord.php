@@ -12,6 +12,11 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * The balance lives on the Account. This table is what you audit with, invoice from and
  * reconcile against when the two disagree. A consequence worth knowing: deleting rows
  * here does NOT hand anybody their credits back, which is the right way round.
+ *
+ * The split between what the plan covered and what came out of purchased credits is
+ * recorded rather than recomputed: rates and plans change, and a bill from last March has
+ * to still add up next year. When the two add up to less than `credits`, the difference
+ * is an overdraft, which is how one stays visible instead of being rounded away.
  */
 class UsageRecord extends Model
 {
@@ -28,6 +33,8 @@ class UsageRecord extends Model
         'quantity_in',
         'quantity_out',
         'credits',
+        'credits_from_plan',
+        'credits_from_purchased',
         'cost',
         'metadata',
     ];
@@ -36,6 +43,8 @@ class UsageRecord extends Model
         'quantity_in' => 'integer',
         'quantity_out' => 'integer',
         'credits' => 'integer',
+        'credits_from_plan' => 'integer',
+        'credits_from_purchased' => 'integer',
         'cost' => 'decimal:6',
         'metadata' => 'array',
     ];

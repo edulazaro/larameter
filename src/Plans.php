@@ -14,7 +14,9 @@ namespace EduLazaro\Larameter;
  */
 class Plans
 {
-    /** @return array<string, array<string, int>> */
+    public const UNLIMITED = -1;
+
+    /** @return array<string, array> */
     public static function all(): array
     {
         return config('larameter.plans') ?? [];
@@ -25,35 +27,46 @@ class Plans
         return $key !== null && array_key_exists($key, static::all());
     }
 
-    /** @return array<string, int> */
-    public static function limits(?string $key): array
+    /** @return array<string, int> The allowance per window. Empty when there is none. */
+    public static function credits(?string $key): array
     {
-        return static::all()[$key] ?? [];
+        $plan = static::all()[$key] ?? [];
+
+        return $plan['credits'] ?? [];
     }
 
     /**
-     * Credits granted per period. 0 with no plan, -1 for unlimited.
+     * The allowance in one window.
      *
-     * Absent means NONE here, unlike limit() below, and the asymmetry is deliberate:
-     * credits are what you sell, so a plan that does not mention them does not include
-     * any. Defaulting this to unlimited would give the whole product away to anybody on
-     * a plan you forgot to fill in.
+     * The two zero-ish answers mean different things and it matters which you get:
+     *
+     *   - the plan grants nothing at all (no plan, or no `credits` key) => 0, and every
+     *     credit has to come from what was purchased.
+     *   - the plan grants credits but says nothing about THIS window => unlimited, so a
+     *     plan capped weekly is not accidentally also capped per session.
      */
-    public static function credits(?string $key): int
+    public static function creditsIn(?string $key, string $window): int
     {
-        return (int) (static::limits($key)['credits_monthly'] ?? 0);
+        $credits = static::credits($key);
+
+        if ($credits === []) {
+            return 0;
+        }
+
+        return (int) ($credits[$window] ?? static::UNLIMITED);
     }
 
     /**
      * A ceiling on how many of something a plan allows: seats, projects, whatever.
      *
-     * Absent means UNLIMITED here, the opposite of credits(), and for the same reason
-     * read the other way round: these are restrictions, so one you never wrote down was
-     * never meant to apply. A package you just installed should not start refusing to
-     * create users because it has an opinion about how many you get.
+     * Absent means UNLIMITED here, the opposite of credits, and for the same reason read
+     * the other way round: these are restrictions, so one you never wrote down was never
+     * meant to apply.
      */
     public static function limit(?string $key, string $resource): int
     {
-        return (int) (static::limits($key)[$resource] ?? -1);
+        $plan = static::all()[$key] ?? [];
+
+        return (int) ($plan['limits'][$resource] ?? static::UNLIMITED);
     }
 }

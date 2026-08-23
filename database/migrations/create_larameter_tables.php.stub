@@ -9,14 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         /*
-        | The balance. One row per thing you meter, and the source of truth for what it
-        | may still spend.
+        | The account. One row per thing you bill, holding only what does NOT expire:
+        | which plan it is on, and credits bought on top.
         |
-        | An earlier design had no balance at all and summed the detail table over a
-        | window instead. That works right up until you sell credits: a top-up is not
-        | consumption, so it cannot be expressed as a sum of what was spent. Once you
-        | have purchased credits the stored balance is not an optimisation, it is the
-        | model.
+        | Consumption is not here. It lives in the windows below, because an allowance is
+        | always an allowance PER something, and how long that something lasts is your
+        | decision and not this package's.
         */
         Schema::create('larameter_accounts', function (Blueprint $table) {
             $table->id();
@@ -32,13 +30,13 @@ return new class extends Migration
             // a trial quietly lapsing), so YOU set this from wherever you do know.
             $table->string('plan_key')->nullable();
 
-            // Two buckets, because they behave differently. The plan allowance resets
-            // every period; purchased credits accumulate and survive it. Spending goes
-            // through the allowance first, so what somebody paid for does not evaporate
-            // at the turn of a month.
+            // Bought, gifted or adjusted. These sit OUTSIDE every window: that is the
+            // whole point of them, and it is what lets somebody who has run out of plan
+            // allowance carry on working.
+            //
+            // A cache of the deposits below, minus what the plan did not cover. Kept on
+            // the row so reading a balance is one row and not two aggregates.
             $table->unsignedBigInteger('purchased_credits')->default(0);
-            $table->unsignedBigInteger('period_credits_used')->default(0);
-            $table->timestamp('period_started_at')->nullable();
 
             $table->timestamps();
 
@@ -46,11 +44,72 @@ return new class extends Migration
         });
 
         /*
-        | The detail. Append-only, and never the source of the balance.
+        | One row per account per window in config('larameter.windows'), created the first
+        | time that window is actually charged.
         |
-        | This is what you audit with, invoice from, and reconcile against when the
-        | balance and the rows disagree. Deleting from it does not give anyone credits
-        | back, which is the right way round.
+        | Created on CHARGE and never on read. For a rolling window the row IS the clock:
+        | writing one starts the five hours. If merely asking "how much do I have left"
+        | created it, opening the app would burn the session without a word being typed.
+        */
+        Schema::create('larameter_windows', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('account_id')
+                ->constrained('larameter_accounts')
+                ->cascadeOnDelete();
+
+            // 'session', 'week', whatever you declared.
+            $table->string('key');
+
+            // What the PLAN has covered in this window. Credits paid for out of the
+            // purchased bucket are deliberately not counted here: they are extra usage
+            // on top of the plan, so they must not eat the next window too.
+            $table->unsignedBigInteger('credits_used')->default(0);
+
+            $table->timestamp('started_at');
+
+            $table->timestamps();
+
+            $table->unique(['account_id', 'key']);
+        });
+
+        /*
+        | Credits in. A purchase, a welcome gift, a refund, a correction somebody made by
+        | hand because a job failed and it was not the customer's fault.
+        |
+        | With this, the balance stops being a number you have to trust and becomes one
+        | you can check: deposits minus the usage the plan did not cover.
+        */
+        Schema::create('larameter_deposits', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('account_id')
+                ->constrained('larameter_accounts')
+                ->cascadeOnDelete();
+
+            // Signed, so an adjustment downwards is the same kind of row as a purchase
+            // and the history reads in one direction.
+            $table->bigInteger('credits');
+
+            // purchase | gift | refund | adjustment, or anything you invent. A free
+            // string, because a package should not have to ship a migration every time
+            // an app finds a new reason to hand somebody credits.
+            $table->string('reason')->default('purchase');
+
+            // Where it came from: the Stripe payment, the order, the admin who did it.
+            $table->nullableMorphs('source');
+
+            $table->string('note')->nullable();
+            $table->json('metadata')->nullable();
+
+            $table->timestamps();
+
+            $table->index(['account_id', 'created_at']);
+        });
+
+        /*
+        | Credits out. Append-only, and never the source of the balance.
+        |
+        | This is what you audit with, invoice from and reconcile against. Deleting from
+        | it does not hand anybody their credits back, which is the right way round.
         */
         Schema::create('larameter_usage', function (Blueprint $table) {
             $table->id();
@@ -75,9 +134,15 @@ return new class extends Migration
             $table->unsignedBigInteger('quantity_in')->default(0);
             $table->unsignedBigInteger('quantity_out')->default(0);
 
-            // What it cost the account, and what it cost you. The second is nullable:
-            // plenty of chargeable actions have no external bill behind them.
+            // What it cost the account, split by where it was paid from. The split is
+            // recorded rather than recomputed: rates and plans change, and a bill from
+            // last March has to still add up next year.
             $table->unsignedInteger('credits')->default(0);
+            $table->unsignedInteger('credits_from_plan')->default(0);
+            $table->unsignedInteger('credits_from_purchased')->default(0);
+
+            // What it cost YOU. Nullable: plenty of chargeable actions have no external
+            // bill behind them.
             $table->decimal('cost', 12, 6)->nullable();
 
             $table->json('metadata')->nullable();
@@ -90,6 +155,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('larameter_usage');
+        Schema::dropIfExists('larameter_deposits');
+        Schema::dropIfExists('larameter_windows');
         Schema::dropIfExists('larameter_accounts');
     }
 };

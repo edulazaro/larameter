@@ -7,9 +7,9 @@ use EduLazaro\Larameter\Models\UsageRecord;
 /**
  * Keeps the balance in step with the rows.
  *
- * It is an observer rather than a line inside CreditMeter so that a usage row written by
- * anything at all still moves the balance: a backfill, a console command, an app that
- * prices something the package never hears about.
+ * An observer rather than a line inside CreditMeter, so that a usage row written by
+ * anything at all still moves the balance: a backfill, a console command, an app pricing
+ * something the package never hears about.
  */
 class UsageRecordObserver
 {
@@ -19,6 +19,18 @@ class UsageRecordObserver
             return;
         }
 
-        $record->account?->apply($record->credits);
+        $account = $record->account;
+
+        if (! $account) {
+            return;
+        }
+
+        $split = $account->apply($record->credits);
+
+        // Quietly: this is the same row being finished off, not a new event to observe.
+        $record->forceFill([
+            'credits_from_plan' => $split['plan'],
+            'credits_from_purchased' => $split['purchased'],
+        ])->saveQuietly();
     }
 }

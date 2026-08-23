@@ -2,7 +2,9 @@
 
 namespace EduLazaro\Larameter;
 
+use EduLazaro\Larameter\Models\Deposit;
 use EduLazaro\Larameter\Models\UsageRecord;
+use EduLazaro\Larameter\Observers\DepositObserver;
 use EduLazaro\Larameter\Observers\UsageRecordObserver;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,10 +24,11 @@ class LarameterServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Every usage row moves the balance, whoever wrote it. Keeping this out of
-        // CreditMeter means a backfill or a console command cannot record consumption
-        // that nobody is charged for.
+        // Every row moves the balance, whoever wrote it. Keeping this out of CreditMeter
+        // means a backfill or a console command cannot record consumption nobody is
+        // charged for, nor hand out credits that never reach the balance.
         UsageRecord::observe(UsageRecordObserver::class);
+        Deposit::observe(DepositObserver::class);
 
         $this->publishes([
             __DIR__ . '/../config/larameter.php' => config_path('larameter.php'),

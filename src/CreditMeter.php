@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  * Charges an account and says whether it may spend more.
  *
  * Nothing here computes a balance: it writes a usage row, and the observer on that row
- * moves the account. Reading the balance is one row, not an aggregate.
+ * moves the account and its windows. Reading a balance is a row and its windows, never an
+ * aggregate over the usage table.
  *
  * Most apps never touch this class. Put the HasCredits trait on whatever you bill and
  * call the methods it gives you.
@@ -110,10 +111,16 @@ class CreditMeter
         return $meterable instanceof Account ? $meterable : Account::for($meterable);
     }
 
-    /** What the plan grants per period, before anything bought on top. */
-    public function budget(Model $meterable): int
+    /** What the PLAN still allows, in whichever window is tightest. Purchased not counted. */
+    public function headroom(Model $meterable): int
     {
-        return $this->account($meterable)->allowance();
+        return $this->account($meterable)->headroom();
+    }
+
+    /** The plan's allowance in one window, ignoring what has been spent of it. */
+    public function allowanceIn(Model $meterable, string $window): int
+    {
+        return Plans::creditsIn($this->account($meterable)->plan_key, $window);
     }
 
     public function remaining(Model $meterable): int

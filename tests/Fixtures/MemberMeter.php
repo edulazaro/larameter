@@ -6,7 +6,7 @@ use EduLazaro\Larameter\Meter;
 
 class MemberMeter extends Meter
 {
-    protected string $key = 'members';
+    public string $handle = 'members';
 
     public function count(): int
     {

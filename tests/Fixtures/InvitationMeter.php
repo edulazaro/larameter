@@ -4,11 +4,9 @@ namespace EduLazaro\Larameter\Tests\Fixtures;
 
 use EduLazaro\Larameter\Meter;
 
-/** Not declared on the model: only ever added with Organization::meter(). */
-class ProjectMeter extends Meter
+/** Declares no handle: the class name has to say it. */
+class InvitationMeter extends Meter
 {
-    public string $handle = 'projects';
-
     public function count(): int
     {
         return 0;

@@ -2,8 +2,6 @@
 
 namespace EduLazaro\Larameter\Contracts;
 
-use Illuminate\Database\Eloquent\Model;
-
 /**
  * Something countable that a plan puts a ceiling on: seats, cases, projects.
  *
@@ -11,14 +9,13 @@ use Illuminate\Database\Eloquent\Model;
  * standing count of what exists, and the plan says how many you may have at once.
  *
  * Extend {@see \EduLazaro\Larameter\Meter} rather than implementing this: the base class
- * leaves you one method to write. The interface is here for a model with a class
- * hierarchy of its own.
+ * leaves you one method to write and works the handle out from the class name. The
+ * interface is here for a class hierarchy of your own, and an implementation of it also
+ * needs a public string $handle. That cannot be required here, because a PHP interface
+ * could not declare a property until 8.4 and this package supports 8.2.
  */
 interface Meter
 {
-    /** Matches the key under `limits` in the plan. */
-    public function key(): string;
-
     /** For a usage screen. */
     public function label(): string;
 

@@ -4,11 +4,9 @@ namespace EduLazaro\Larameter\Tests\Fixtures;
 
 use EduLazaro\Larameter\Meter;
 
-/** Not declared on the model: only ever added with Organization::meter(). */
-class ProjectMeter extends Meter
+/** Already plural, and irregular. Both have to survive the derivation. */
+class CompaniesMeter extends Meter
 {
-    public string $handle = 'projects';
-
     public function count(): int
     {
         return 0;

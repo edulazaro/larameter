@@ -69,6 +69,8 @@ class MakeMeterCommand extends GeneratorCommand
         $modelSegments = explode('\\', $modelClass);
         $usedModelClass = end($modelSegments);
 
+        // Same derivation the base class uses when the handle is left off, so the
+        // generated line and the default never disagree.
         $key = Str::snake(Str::pluralStudly($subject));
 
         return str_replace(

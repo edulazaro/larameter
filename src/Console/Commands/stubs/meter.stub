@@ -10,8 +10,10 @@ class {{meter_class}} extends Meter
      * Matches the key under `limits` in your plans:
      *
      *     'pro' => ['limits' => ['{{meter_key}}' => 25]],
+     *
+     * Delete this line and the class name says it: {{meter_class}} counts {{meter_key}}.
      */
-    protected string $key = '{{meter_key}}';
+    public string $handle = '{{meter_key}}';
 
     /** @var \{{model_class}} $meterable */
     public function count(): int

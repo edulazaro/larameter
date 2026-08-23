@@ -6,7 +6,7 @@ use EduLazaro\Larameter\Meter;
 
 class CaseMeter extends Meter
 {
-    protected string $key = 'cases';
+    public string $handle = 'cases';
 
     public function label(): string
     {

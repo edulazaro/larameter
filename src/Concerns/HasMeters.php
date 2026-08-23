@@ -103,7 +103,7 @@ trait HasMeters
 
         foreach ($classes as $meterClass) {
             $meter = new $meterClass($this);
-            $this->meterInstances[$meter->key()] = $meter;
+            $this->meterInstances[$meter->handle] = $meter;
         }
 
         return $this->meterInstances;

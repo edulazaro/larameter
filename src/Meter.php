@@ -28,22 +28,36 @@ use Illuminate\Support\Str;
  */
 abstract class Meter implements MeterContract
 {
-    protected string $key = '';
+    /**
+     * Matches the key under `limits` in the plan. Declare it, or let the class name say
+     * it: MemberMeter counts `members`, CompanyMeter counts `companies`, and MembersMeter
+     * also counts `members` because pluralising an already plural word changes nothing.
+     *
+     * Not readonly: the constructor fills it in when the subclass left it alone.
+     */
+    public string $handle = '';
 
     public function __construct(
         protected Model $meterable,
-    ) {}
+    ) {
+        if ($this->handle === '') {
+            $this->handle = static::handleFromClassName();
+        }
+    }
 
     abstract public function count(): int;
 
-    public function key(): string
+    /**
+     * The suffix comes off FIRST, then the word is pluralised.
+     *
+     * The other way round pluralises "Meter" and gives member_meters, which matches no
+     * plan limit and so reads as unlimited: a cap that silently never applies.
+     */
+    protected static function handleFromClassName(): string
     {
-        // Falls back to the class name so a meter that forgets its key still lands
-        // somewhere predictable rather than on the empty string, where every plan lookup
-        // would silently miss and every cap would read as unlimited.
-        return $this->key !== ''
-            ? $this->key
-            : Str::snake(Str::pluralStudly(class_basename(static::class)));
+        $subject = preg_replace('/Meter$/', '', class_basename(static::class));
+
+        return Str::snake(Str::pluralStudly($subject));
     }
 
     /**
@@ -60,13 +74,13 @@ abstract class Meter implements MeterContract
      */
     public function label(): string
     {
-        return Str::headline($this->key());
+        return Str::headline($this->handle);
     }
 
     /** The ceiling for this account's plan. -1 is unlimited. */
     public function limit(): int
     {
-        return $this->plan()->limit($this->key());
+        return $this->plan()->limit($this->handle);
     }
 
     /** Whether one more may be created. */
@@ -77,11 +91,11 @@ abstract class Meter implements MeterContract
         return $limit < 0 || ($this->count() + $additional) <= $limit;
     }
 
-    /** @return array{key: string, label: string, count: int, limit: int} */
+    /** @return array{handle: string, label: string, count: int, limit: int} */
     public function toArray(): array
     {
         return [
-            'key' => $this->key(),
+            'handle' => $this->handle,
             'label' => $this->label(),
             'count' => $this->count(),
             'limit' => $this->limit(),

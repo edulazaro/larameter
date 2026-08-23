@@ -95,11 +95,25 @@ class MeterTest extends TestCase
         $this->assertTrue($this->org()->canCreate('projects'));
     }
 
+    public function test_the_class_name_says_the_handle_when_you_do_not(): void
+    {
+        $org = $this->org();
+
+        // The suffix comes off before the word is pluralised. The other way round gives
+        // invitation_meters, which matches no plan limit and so reads as unlimited: a cap
+        // that silently never applies.
+        $this->assertSame('invitations', (new \EduLazaro\Larameter\Tests\Fixtures\InvitationMeter($org))->handle);
+
+        // Already plural stays put, and an irregular plural is still irregular.
+        $this->assertSame('companies', (new \EduLazaro\Larameter\Tests\Fixtures\CompaniesMeter($org))->handle);
+    }
+
     public function test_the_label_comes_from_the_key_unless_you_say_otherwise(): void
     {
         $org = $this->org();
 
         $this->assertSame('Members', $org->meterFor('members')->label());
+        $this->assertSame('members', $org->meterFor('members')->handle);
         $this->assertSame('Expedientes', $org->meterFor('cases')->label());
     }
 
@@ -111,8 +125,8 @@ class MeterTest extends TestCase
         Matter::create(['organization_id' => $org->id]);
 
         $this->assertSame([
-            ['key' => 'members', 'label' => 'Members', 'count' => 1, 'limit' => 2],
-            ['key' => 'cases', 'label' => 'Expedientes', 'count' => 2, 'limit' => -1],
+            ['handle' => 'members', 'label' => 'Members', 'count' => 1, 'limit' => 2],
+            ['handle' => 'cases', 'label' => 'Expedientes', 'count' => 2, 'limit' => -1],
         ], $org->fresh()->usageSummary());
     }
 

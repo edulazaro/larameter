@@ -1,9 +1,9 @@
 <?php
 
-namespace EduLazaro\Laracredits\Tests\Feature;
+namespace EduLazaro\Larameter\Tests\Feature;
 
-use EduLazaro\Laracredits\Tests\Fixtures\Account;
-use EduLazaro\Laracredits\Tests\TestCase;
+use EduLazaro\Larameter\Tests\Fixtures\Account;
+use EduLazaro\Larameter\Tests\TestCase;
 
 /**
  * The three-step setup: publish the config, name your plans, add the trait.
@@ -13,8 +13,8 @@ class HasCreditsTest extends TestCase
     public function test_the_trait_is_the_whole_api_most_apps_need(): void
     {
         config([
-            'laracredits.plans.free.credits_monthly' => 400,
-            'laracredits.prices.create_form' => 5,
+            'larameter.plans.free.credits_monthly' => 400,
+            'larameter.prices.create_form' => 5,
         ]);
 
         $account = Account::create();
@@ -30,7 +30,7 @@ class HasCreditsTest extends TestCase
 
     public function test_the_plan_comes_from_the_model_and_falls_back(): void
     {
-        config(['laracredits.default_plan' => 'free']);
+        config(['larameter.default_plan' => 'free']);
 
         $account = Account::create();
         $this->assertSame('free', $account->creditPlanKey());

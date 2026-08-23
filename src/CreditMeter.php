@@ -1,9 +1,9 @@
 <?php
 
-namespace EduLazaro\Laracredits;
+namespace EduLazaro\Larameter;
 
-use EduLazaro\Laracredits\Contracts\ProvidesPlanLimits;
-use EduLazaro\Laracredits\Models\UsageRecord;
+use EduLazaro\Larameter\Contracts\ProvidesPlanLimits;
+use EduLazaro\Larameter\Models\UsageRecord;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -72,7 +72,7 @@ class CreditMeter
         ?Model $subject = null,
         array $metadata = [],
     ): UsageRecord {
-        $rates = config("laracredits.rates.{$unit}") ?? [];
+        $rates = config("larameter.rates.{$unit}") ?? [];
         $rate = $rates[$operation] ?? $rates['*'] ?? null;
 
         return UsageRecord::create([
@@ -95,7 +95,7 @@ class CreditMeter
     /** What a fixed action costs. Unpriced actions are free rather than a guess. */
     public function priceOf(string $operation): int
     {
-        return (int) config("laracredits.prices.{$operation}", 0);
+        return (int) config("larameter.prices.{$operation}", 0);
     }
 
     // ─── Balance ────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ class CreditMeter
             return $monthly;
         }
 
-        $share = (float) config('laracredits.weekly_share', 0.25);
+        $share = (float) config('larameter.weekly_share', 0.25);
 
         return (int) ceil($monthly * $share);
     }
@@ -190,10 +190,10 @@ class CreditMeter
         if (! $rate) {
             // Unpriced units still cost something, or metering an unknown model would be
             // free and the gap would only show up on the provider's invoice.
-            return max(1, (int) ceil(($in + $out) / (int) config('laracredits.fallback_units_per_credit', 100)));
+            return max(1, (int) ceil(($in + $out) / (int) config('larameter.fallback_units_per_credit', 100)));
         }
 
-        return max(1, (int) ceil($this->costFor($rate, $in, $out) * (int) config('laracredits.credits_per_unit_cost', 10000)));
+        return max(1, (int) ceil($this->costFor($rate, $in, $out) * (int) config('larameter.credits_per_unit_cost', 10000)));
     }
 
     private function costFor(?array $rate, int $in, int $out): float

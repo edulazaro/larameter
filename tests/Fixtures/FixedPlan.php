@@ -1,8 +1,8 @@
 <?php
 
-namespace EduLazaro\Laracredits\Tests\Fixtures;
+namespace EduLazaro\Larameter\Tests\Fixtures;
 
-use EduLazaro\Laracredits\Contracts\ProvidesPlanLimits;
+use EduLazaro\Larameter\Contracts\ProvidesPlanLimits;
 use Illuminate\Database\Eloquent\Model;
 
 class FixedPlan implements ProvidesPlanLimits

@@ -1,9 +1,9 @@
 <?php
 
-namespace EduLazaro\Laracredits\Concerns;
+namespace EduLazaro\Larameter\Concerns;
 
-use EduLazaro\Laracredits\CreditMeter;
-use EduLazaro\Laracredits\Models\UsageRecord;
+use EduLazaro\Larameter\CreditMeter;
+use EduLazaro\Larameter\Models\UsageRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -30,7 +30,7 @@ trait HasCredits
      */
     public function creditPlanKey(): string
     {
-        return $this->getAttribute('plan') ?: (string) config('laracredits.default_plan', 'free');
+        return $this->getAttribute('plan') ?: (string) config('larameter.default_plan', 'free');
     }
 
     public function hasCredits(int $credits = 1): bool

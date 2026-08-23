@@ -1,8 +1,8 @@
 <?php
 
-namespace EduLazaro\Laracredits\Tests\Fixtures;
+namespace EduLazaro\Larameter\Tests\Fixtures;
 
-use EduLazaro\Laracredits\Concerns\HasCredits;
+use EduLazaro\Larameter\Concerns\HasCredits;
 use Illuminate\Database\Eloquent\Model;
 
 /** Stands in for whatever the host app calls a tenant. */

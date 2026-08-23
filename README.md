@@ -1,4 +1,4 @@
-# Laracredits
+# Larameter
 
 Credit metering and plan limits for Laravel. Charge per action or per unit consumed, cap
 by month and by week, and stop a call before it spends what an account no longer has.
@@ -26,9 +26,9 @@ being broken rather than the plan being small.
 
 Three steps, no interface to implement.
 
-    composer require edulazaro/laracredits
-    php artisan vendor:publish --tag=laracredits-config
-    php artisan vendor:publish --tag=laracredits-migrations
+    composer require edulazaro/larameter
+    php artisan vendor:publish --tag=larameter-config
+    php artisan vendor:publish --tag=larameter-migrations
 
 Name your plans in the config:
 
@@ -41,7 +41,7 @@ Add the trait to whatever you bill:
 
     class Organization extends Model
     {
-        use EduLazaro\Laracredits\Concerns\HasCredits;
+        use EduLazaro\Larameter\Concerns\HasCredits;
     }
 
 Done:

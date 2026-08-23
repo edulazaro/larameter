@@ -1,8 +1,8 @@
 <?php
 
-namespace EduLazaro\Laracredits\Tests;
+namespace EduLazaro\Larameter\Tests;
 
-use EduLazaro\Laracredits\LaracreditsServiceProvider;
+use EduLazaro\Larameter\LarameterServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -10,7 +10,7 @@ abstract class TestCase extends Orchestra
 {
     protected function getPackageProviders($app): array
     {
-        return [LaracreditsServiceProvider::class];
+        return [LarameterServiceProvider::class];
     }
 
     protected function defineEnvironment($app): void
@@ -21,7 +21,7 @@ abstract class TestCase extends Orchestra
 
     protected function defineDatabaseMigrations(): void
     {
-        $migration = require __DIR__ . '/../database/migrations/create_laracredits_tables.php.stub';
+        $migration = require __DIR__ . '/../database/migrations/create_larameter_tables.php.stub';
         $migration->up();
 
         Schema::create('accounts', function ($table) {

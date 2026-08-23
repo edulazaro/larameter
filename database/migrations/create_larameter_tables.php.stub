@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('laracredits_usage', function (Blueprint $table) {
+        Schema::create('larameter_usage', function (Blueprint $table) {
             $table->id();
 
             // Who is billed. Morphs, so the package never learns what you call a tenant.
@@ -44,6 +44,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('laracredits_usage');
+        Schema::dropIfExists('larameter_usage');
     }
 };

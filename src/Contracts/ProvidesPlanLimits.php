@@ -1,6 +1,6 @@
 <?php
 
-namespace EduLazaro\Laracredits\Contracts;
+namespace EduLazaro\Larameter\Contracts;
 
 use Illuminate\Database\Eloquent\Model;
 

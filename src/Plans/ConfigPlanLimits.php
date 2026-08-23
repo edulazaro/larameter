@@ -1,8 +1,8 @@
 <?php
 
-namespace EduLazaro\Laracredits\Plans;
+namespace EduLazaro\Larameter\Plans;
 
-use EduLazaro\Laracredits\Contracts\ProvidesPlanLimits;
+use EduLazaro\Larameter\Contracts\ProvidesPlanLimits;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -20,7 +20,7 @@ class ConfigPlanLimits implements ProvidesPlanLimits
     public function limitFor(Model $account, string $key): int
     {
         $plan = $this->planKeyFor($account);
-        $limits = config("laracredits.plans.{$plan}", []);
+        $limits = config("larameter.plans.{$plan}", []);
 
         // An unlisted key is unlimited rather than zero. Getting that backwards means a
         // package you just installed starts refusing things you never meant to limit.
@@ -35,6 +35,6 @@ class ConfigPlanLimits implements ProvidesPlanLimits
             $plan = $account->getAttribute('plan');
         }
 
-        return $plan ?: (string) config('laracredits.default_plan', 'free');
+        return $plan ?: (string) config('larameter.default_plan', 'free');
     }
 }

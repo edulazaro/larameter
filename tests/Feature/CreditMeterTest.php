@@ -1,13 +1,13 @@
 <?php
 
-namespace EduLazaro\Laracredits\Tests\Feature;
+namespace EduLazaro\Larameter\Tests\Feature;
 
-use EduLazaro\Laracredits\Contracts\ProvidesPlanLimits;
-use EduLazaro\Laracredits\CreditMeter;
-use EduLazaro\Laracredits\Plans\ConfigPlanLimits;
-use EduLazaro\Laracredits\Tests\Fixtures\Account;
-use EduLazaro\Laracredits\Tests\Fixtures\FixedPlan;
-use EduLazaro\Laracredits\Tests\TestCase;
+use EduLazaro\Larameter\Contracts\ProvidesPlanLimits;
+use EduLazaro\Larameter\CreditMeter;
+use EduLazaro\Larameter\Plans\ConfigPlanLimits;
+use EduLazaro\Larameter\Tests\Fixtures\Account;
+use EduLazaro\Larameter\Tests\Fixtures\FixedPlan;
+use EduLazaro\Larameter\Tests\TestCase;
 
 class CreditMeterTest extends TestCase
 {
@@ -25,7 +25,7 @@ class CreditMeterTest extends TestCase
     {
         // The whole setup: publish the config, name your plans. Requiring an interface
         // first is friction in the minute someone decides whether to install this at all.
-        config(['laracredits.plans.free.credits_monthly' => 500]);
+        config(['larameter.plans.free.credits_monthly' => 500]);
 
         $meter = $this->app->make(CreditMeter::class);
         $account = $this->account();
@@ -46,7 +46,7 @@ class CreditMeterTest extends TestCase
 
     public function test_a_fixed_action_costs_what_you_priced_it_at(): void
     {
-        config(['laracredits.prices.create_form' => 3]);
+        config(['larameter.prices.create_form' => 3]);
         $account = $this->account();
 
         $this->meter()->charge($account, 'create_form');
@@ -65,7 +65,7 @@ class CreditMeterTest extends TestCase
 
     public function test_metered_units_are_priced_by_operation(): void
     {
-        config(['laracredits.rates.token' => [
+        config(['larameter.rates.token' => [
             'gpt-4o' => ['in' => 2.50, 'out' => 10.00, 'per' => 1_000_000],
         ]]);
 

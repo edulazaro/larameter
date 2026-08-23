@@ -1,6 +1,6 @@
 <?php
 
-namespace EduLazaro\Laracredits\Models;
+namespace EduLazaro\Larameter\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class UsageRecord extends Model
 {
-    protected $table = 'laracredits_usage';
+    protected $table = 'larameter_usage';
 
     protected $fillable = [
         'account_type',

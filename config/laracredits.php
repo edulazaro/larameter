@@ -10,12 +10,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Plan limits
+    | Plans
     |--------------------------------------------------------------------------
-    | Your implementation of Contracts\ProvidesPlanLimits. Plans, tiers, the deal one
-    | customer negotiated: all yours. The package only asks how much of X an account
-    | gets. Leave it null and everything is unlimited, which is what you want before
-    | you have wired your pricing.
+    | Name your plans and what each one includes. Any key you like: 'credits_monthly'
+    | is the only one the package looks for by name, and it is what the balance is
+    | measured against. The rest are ceilings you check yourself with canCreate().
+    |
+    | -1 means unlimited, which is not the same as 0.
+    */
+
+    'plans' => [
+        'free' => [
+            'credits_monthly' => 100,
+        ],
+    ],
+
+    // The plan for an account that has none. Also what a HasCredits model falls back
+    // to when its `plan` column is empty.
+    'default_plan' => 'free',
+
+    /*
+    | Plans somewhere other than this file? A table, a per-customer override, a deal
+    | somebody negotiated over the phone? Implement Contracts\ProvidesPlanLimits and
+    | name the class here. The config plans above are then ignored.
+    |
+    | Most apps never need this.
     */
 
     'plan_limits' => null,

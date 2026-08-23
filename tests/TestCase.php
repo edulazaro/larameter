@@ -26,6 +26,7 @@ abstract class TestCase extends Orchestra
 
         Schema::create('accounts', function ($table) {
             $table->id();
+            $table->string('plan')->nullable();
             $table->timestamps();
         });
     }

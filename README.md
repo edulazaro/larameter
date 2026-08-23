@@ -22,14 +22,43 @@ a quarter of it by default, is a brake. Without it an account can burn a month's
 in a bad afternoon and spend the other three weeks locked out, which reads as the product
 being broken rather than the plan being small.
 
-## Your pricing stays yours
+## Setup
 
-Implement `Contracts\ProvidesPlanLimits` and point the config at it. Plans, tiers,
-grandfathered deals, the discount one customer negotiated: all yours. The package only ever
-asks how much of X an account gets, and takes the answer. Return `-1` for unlimited.
+Three steps, no interface to implement.
 
-Bind nothing and everything is unlimited, which is what you want before you have wired
-pricing.
+    composer require edulazaro/laracredits
+    php artisan vendor:publish --tag=laracredits-config
+    php artisan vendor:publish --tag=laracredits-migrations
+
+Name your plans in the config:
+
+    'plans' => [
+        'free' => ['credits_monthly' => 100],
+        'pro'  => ['credits_monthly' => 10000, 'seats' => 10],
+    ],
+
+Add the trait to whatever you bill:
+
+    class Organization extends Model
+    {
+        use EduLazaro\Laracredits\Concerns\HasCredits;
+    }
+
+Done:
+
+    $org->hasCredits();
+    $org->chargeCredits('create_form');
+    $org->creditsRemaining();
+    $org->canCreate('seats', $current);
+
+The plan comes from a `plan` column, or override `creditPlanKey()` if yours lives on a
+subscription row or behind a relation. A limit key you never listed is **unlimited**, not
+zero: the other way round, a package you just installed starts refusing things you never
+meant to limit.
+
+**Plans somewhere else?** In a table, with per-customer overrides, a deal somebody
+negotiated over the phone? Implement `Contracts\ProvidesPlanLimits` and name the class in
+the config. Most apps never need this.
 
 ## Charging
 

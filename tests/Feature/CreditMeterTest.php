@@ -4,6 +4,7 @@ namespace EduLazaro\Laracredits\Tests\Feature;
 
 use EduLazaro\Laracredits\Contracts\ProvidesPlanLimits;
 use EduLazaro\Laracredits\CreditMeter;
+use EduLazaro\Laracredits\Plans\ConfigPlanLimits;
 use EduLazaro\Laracredits\Tests\Fixtures\Account;
 use EduLazaro\Laracredits\Tests\Fixtures\FixedPlan;
 use EduLazaro\Laracredits\Tests\TestCase;
@@ -20,13 +21,27 @@ class CreditMeterTest extends TestCase
         return Account::create();
     }
 
-    public function test_with_no_plan_bound_everything_is_unlimited(): void
+    public function test_plans_come_from_config_with_no_interface_to_implement(): void
     {
-        // A package should not start refusing work because you have not wired pricing.
+        // The whole setup: publish the config, name your plans. Requiring an interface
+        // first is friction in the minute someone decides whether to install this at all.
+        config(['laracredits.plans.free.credits_monthly' => 500]);
+
+        $meter = $this->app->make(CreditMeter::class);
+        $account = $this->account();
+
+        $this->assertInstanceOf(ConfigPlanLimits::class, $this->app->make(ProvidesPlanLimits::class));
+        $this->assertSame(500, $meter->budget($account));
+        $this->assertTrue($meter->hasCredits($account, 100));
+    }
+
+    public function test_a_limit_you_never_listed_is_unlimited_not_zero(): void
+    {
+        // Backwards, and a package you just installed starts refusing things you never
+        // meant to limit.
         $meter = $this->app->make(CreditMeter::class);
 
-        $this->assertInstanceOf(ProvidesPlanLimits::class, $this->app->make(ProvidesPlanLimits::class));
-        $this->assertTrue($meter->hasCredits($this->account(), 1_000_000));
+        $this->assertTrue($meter->canCreate($this->account(), 'a_resource_nobody_capped', 99999));
     }
 
     public function test_a_fixed_action_costs_what_you_priced_it_at(): void

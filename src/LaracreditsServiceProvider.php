@@ -3,7 +3,7 @@
 namespace EduLazaro\Laracredits;
 
 use EduLazaro\Laracredits\Contracts\ProvidesPlanLimits;
-use EduLazaro\Laracredits\Plans\UnlimitedPlanLimits;
+use EduLazaro\Laracredits\Plans\ConfigPlanLimits;
 use Illuminate\Support\ServiceProvider;
 
 class LaracreditsServiceProvider extends ServiceProvider
@@ -12,15 +12,20 @@ class LaracreditsServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/laracredits.php', 'laracredits');
 
-        // Nothing bound means everything is unlimited. A package should not start
-        // refusing work because you have not wired your pricing yet.
+        // Plans come from config unless you say otherwise. Nobody should have to
+        // implement an interface to charge for creating a form.
         $this->app->singleton(ProvidesPlanLimits::class, function ($app) {
             $class = $app['config']['laracredits.plan_limits'] ?? null;
 
-            return $class ? $app->make($class) : new UnlimitedPlanLimits();
+            return $class ? $app->make($class) : new ConfigPlanLimits();
         });
 
-        $this->app->singleton(CreditMeter::class);
+        // SCOPED, not singleton. The meter memoises hasCreditsMemoized(), and a queue
+        // worker keeps singletons alive between jobs: an account that ran out would go
+        // on spending for as long as that worker lived. Scoped bindings are flushed
+        // between jobs and between Octane requests, which is exactly the lifetime the
+        // memo is meant to have.
+        $this->app->scoped(CreditMeter::class);
     }
 
     public function boot(): void

@@ -2,7 +2,6 @@
 
 namespace EduLazaro\Larameter\Tests\Feature;
 
-use EduLazaro\Larameter\CashierPlan;
 use EduLazaro\Larameter\PlanProviders\CashierPlanProvider;
 use EduLazaro\Larameter\PlanProviders\ForcedPlanProvider;
 use EduLazaro\Larameter\PlanProviders\StoredPlanProvider;
@@ -66,11 +65,17 @@ class PlanProviderTest extends TestCase
         $this->assertSame('max', $this->subscriber(price: 'price_max')->plan()->handle);
     }
 
-    public function test_a_plan_from_a_subscription_knows_it_came_from_one(): void
+    public function test_a_plan_reads_the_same_whoever_resolved_it(): void
     {
-        // Which is what lets the billing windows line up with the invoice instead of with
-        // whenever somebody first used the thing.
-        $this->assertInstanceOf(CashierPlan::class, $this->subscriber(price: 'price_pro')->plan());
+        $fromSubscription = $this->subscriber(price: 'price_pro')->plan();
+
+        $stored = $this->subscriber();
+        $stored->setCreditPlan('pro');
+
+        // Same class, same answers. Where a plan came from is the provider's business and
+        // stops there: a Plan is a handle, a name, an allowance and some ceilings.
+        $this->assertSame($fromSubscription::class, $stored->plan()::class);
+        $this->assertSame($fromSubscription->credits('month'), $stored->plan()->credits('month'));
     }
 
     public function test_an_override_beats_the_subscription(): void

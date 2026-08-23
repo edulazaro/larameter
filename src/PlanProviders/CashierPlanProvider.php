@@ -2,7 +2,6 @@
 
 namespace EduLazaro\Larameter\PlanProviders;
 
-use EduLazaro\Larameter\CashierPlan;
 use EduLazaro\Larameter\Contracts\PlanProvider;
 use EduLazaro\Larameter\Plan;
 use EduLazaro\Larameter\Plans;
@@ -14,6 +13,10 @@ use Illuminate\Database\Eloquent\Model;
  * Cashier is detected and never required. Without it, or without a subscription, this
  * answers null and the next provider gets a turn, so an app that sells credit bundles
  * pays nothing for this being in the default list.
+ *
+ * Everything it knows about Cashier stays in here. A Plan is a plan: a handle, a name,
+ * an allowance and some ceilings, and it should read the same whether it was resolved
+ * from a subscription, from a column, or from a default.
  */
 class CashierPlanProvider implements PlanProvider
 {
@@ -33,7 +36,7 @@ class CashierPlanProvider implements PlanProvider
             $priceId = (new Plan($handle, $config))->priceId();
 
             if ($priceId && $model->subscribedToPrice($priceId, $type)) {
-                return new CashierPlan($handle, $config, $model->subscription($type));
+                return new Plan($handle, $config);
             }
         }
 

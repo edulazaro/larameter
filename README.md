@@ -178,17 +178,13 @@ Data is a property, a question is a method. `name` is a property and not a metho
 a plan name is a product name: Pro, Max, Hyper Team. Nobody translates those, any more
 than they translate the name of the application.
 
-**A plan knows where it came from,** and that is not decoration. `CashierPlanProvider`
-returns a `CashierPlan`, which answers everything a plain `Plan` does plus `renewsAt()`,
-`startedAt()`, `onTrial()` and `subscription()`.
+**A `Plan` is generic.** A handle, a name, an allowance and some ceilings, and it reads the
+same whether it was resolved from a subscription, from a column of yours, or from a
+default. What a provider had to know to answer stays inside that provider.
 
-The window grid is laid on `startedAt()` when there is one. So a customer who tried the
-app on Tuesday and has been paying since the 15th gets their month counted from the 15th,
-not from Tuesday, and nobody has to call anything from a webhook to make that happen. Get
-it wrong and they receive a fresh allowance five days after paying for one, every month,
-and since it always falls their way nobody ever reports it.
+Anchoring the billing windows to an invoice is a separate matter, and an explicit one:
 
-Nothing should ever need `instanceof CashierPlan`: if it does, `Plan` is missing a method.
+    $org->startCreditPeriod($renewedAt);
 
 **Plans are optional.** `HasCredits` alone is an app that sells bundles: no plan, no
 allowance, everything from what was purchased.

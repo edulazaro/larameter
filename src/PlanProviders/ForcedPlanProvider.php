@@ -8,13 +8,18 @@ use EduLazaro\Larameter\Plans;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * A plan set by hand, in a column of your own: courtesy accounts, demos, partners.
+ * A plan set by hand in a column of your own: courtesy accounts, demos, partners.
  *
- * First in the default order, so it beats the subscription. Somebody decided this
- * deliberately and Stripe should not quietly undo it.
+ * First in the default order, so it beats a subscription.
  */
 class ForcedPlanProvider implements PlanProvider
 {
+    /**
+     * The plan named by the override column, if it names a real one.
+     *
+     * @param  Model  $model
+     * @return Plan|null
+     */
     public function provide(Model $model): ?Plan
     {
         $column = config('larameter.override_column');
@@ -23,11 +28,7 @@ class ForcedPlanProvider implements PlanProvider
             return null;
         }
 
-        $key = $model->getAttribute($column);
-
-        // Ignored when it names a plan that no longer exists, rather than leaving the
-        // account on one whose credits and limits cannot be read, which behaves like
-        // unlimited everything.
-        return $key && Plans::exists($key) ? Plans::find($key) : null;
+        $handle = $model->getAttribute($column);
+        return $handle && Plans::exists($handle) ? Plans::find($handle) : null;
     }
 }

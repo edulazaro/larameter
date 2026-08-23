@@ -6,15 +6,19 @@ use EduLazaro\Larameter\Plan;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * One place a plan can come from.
+ * A source a plan can be resolved from.
  *
- * They run in order and the first that answers wins, so the order is the policy: an
- * override before a subscription says a person's decision beats what Stripe thinks.
- *
- * Return null to pass to the next one. A provider that cannot answer is normal, not a
- * failure: without Cashier installed, CashierPlanProvider simply never answers.
+ * Providers run in order and the first that answers wins, so the order is the policy:
+ * an override before a subscription means a decision made by hand beats what the
+ * billing provider thinks.
  */
 interface PlanProvider
 {
+    /**
+     * The plan this model is on, or null to let the next provider answer.
+     *
+     * @param  Model  $model
+     * @return Plan|null
+     */
     public function provide(Model $model): ?Plan;
 }

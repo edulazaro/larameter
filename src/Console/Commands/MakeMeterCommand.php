@@ -21,6 +21,11 @@ class MakeMeterCommand extends GeneratorCommand
 
     protected $type = 'Meter';
 
+    /**
+     * Get the stub file for the generator.
+     *
+     * @return string
+     */
     protected function getStub(): string
     {
         return __DIR__ . '/stubs/meter.stub';
@@ -32,7 +37,10 @@ class MakeMeterCommand extends GeneratorCommand
      * A meter only means anything next to the model it counts on, and an app of any size
      * ends up with several models that have caps. Flat, App\Meters would mix the seats of
      * an organisation with the members of a case and you would be reading class names to
-     * tell them apart.
+     * tell them apart.     *
+     * @param  string  $rootNamespace
+     * @return string
+
      */
     protected function getDefaultNamespace($rootNamespace): string
     {
@@ -47,13 +55,17 @@ class MakeMeterCommand extends GeneratorCommand
         return $rootNamespace . '\Meters\\' . end($segments);
     }
 
+    /**
+     * Fill the stub in from the class name and the optional model.
+     *
+     * @param  string  $stub
+     * @param  string  $name
+     * @return string
+     */
     protected function replaceClass($stub, $name): string
     {
         $segments = explode('\\', $name);
         $meterClass = end($segments);
-
-        // MemberMeter counts members on a Member... no: it counts members on whatever
-        // model it is attached to. The model argument only types the docblock.
         $subject = preg_replace('/Meter$/', '', $meterClass);
 
         if ($this->argument('model')) {
@@ -68,9 +80,6 @@ class MakeMeterCommand extends GeneratorCommand
 
         $modelSegments = explode('\\', $modelClass);
         $usedModelClass = end($modelSegments);
-
-        // Same derivation the base class uses when the handle is left off, so the
-        // generated line and the default never disagree.
         $key = Str::snake(Str::pluralStudly($subject));
 
         return str_replace(

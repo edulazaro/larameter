@@ -7,13 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
- * Credits in: a purchase, a welcome gift, a refund, a correction made by hand.
+ * Credits in: a purchase, a gift, a refund, a correction made by hand.
  *
- * These sit outside every window. That is the point of them, and it is what lets somebody
- * who has run out of plan allowance carry on working.
- *
- * With this table the balance stops being a number you have to trust and becomes one you
- * can check.
+ * Sits outside every window, so what somebody paid for survives a reset. Also what
+ * makes the balance checkable rather than a number to trust.
  */
 class Deposit extends Model
 {
@@ -34,12 +31,21 @@ class Deposit extends Model
         'metadata' => 'array',
     ];
 
+    /**
+     * The account this deposit credited.
+     *
+     * @return BelongsTo
+     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'account_id');
     }
 
-    /** The Stripe payment, the order, the admin who did it. */
+    /**
+     * Where it came from: a payment, an order, the admin who did it.
+     *
+     * @return MorphTo
+     */
     public function source(): MorphTo
     {
         return $this->morphTo();

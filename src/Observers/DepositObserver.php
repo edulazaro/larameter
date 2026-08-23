@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\DB;
  */
 class DepositObserver
 {
+    /**
+     * Move the balance to match a deposit that was just written.
+     *
+     * @param  Deposit  $deposit
+     * @return void
+     */
     public function created(Deposit $deposit): void
     {
         if ($deposit->credits === 0) {
@@ -26,9 +32,6 @@ class DepositObserver
             if (! $account) {
                 return;
             }
-
-            // Clamped: an adjustment downwards larger than the balance takes it to zero
-            // rather than into a debt nobody can spend their way out of.
             $account->purchased_credits = max(0, $account->purchased_credits + $deposit->credits);
             $account->save();
         });

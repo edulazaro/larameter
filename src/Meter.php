@@ -3,87 +3,80 @@
 namespace EduLazaro\Larameter;
 
 use EduLazaro\Larameter\Contracts\Meter as MeterContract;
-use EduLazaro\Larameter\Plan;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
- * Counts one thing a plan caps.
+ * Counts one resource a plan caps.
  *
- * Write one per resource and leave it at that:
+ * Write one per resource and leave the rest to the base class:
  *
  *     class MemberMeter extends Meter
  *     {
- *         protected string $key = 'members';
- *
  *         public function count(): int
  *         {
  *             return $this->meterable->members()->count();
  *         }
  *     }
  *
- * It exists because the alternative was making every caller do the counting. That is how
- * a cap ends up enforced in one place and forgotten in another: the plan says one seat,
- * the usage screen says one seat, and the invite form never asks.
+ * A class rather than a number passed in by the caller, because a ceiling enforced by
+ * whoever remembers to count is a ceiling enforced in some places and not others.
  */
 abstract class Meter implements MeterContract
 {
     /**
-     * Matches the key under `limits` in the plan. Declare it, or let the class name say
-     * it: MemberMeter counts `members`, CompanyMeter counts `companies`, and MembersMeter
-     * also counts `members` because pluralising an already plural word changes nothing.
+     * Matches the key under `limits` in the plan. Derived from the class name if empty.
      *
-     * Not readonly: the constructor fills it in when the subclass left it alone.
+     * @var string
      */
     public string $handle = '';
 
-    public function __construct(
-        protected Model $meterable,
-    ) {
+    /**
+     * Create a new meter for a model.
+     *
+     * @param  Model  $meterable
+     * @return void
+     */
+    public function __construct(protected Model $meterable)
+    {
         if ($this->handle === '') {
             $this->handle = static::handleFromClassName();
         }
     }
 
+    /**
+     * How many exist right now.
+     *
+     * @return int
+     */
     abstract public function count(): int;
 
     /**
-     * The suffix comes off FIRST, then the word is pluralised.
+     * Display name. Derived from the handle unless overridden.
      *
-     * The other way round pluralises "Meter" and gives member_meters, which matches no
-     * plan limit and so reads as unlimited: a cap that silently never applies.
-     */
-    protected static function handleFromClassName(): string
-    {
-        $subject = preg_replace('/Meter$/', '', class_basename(static::class));
-
-        return Str::snake(Str::pluralStudly($subject));
-    }
-
-    /**
-     * Whatever a usage screen should call it.
-     *
-     * Derived from the key, so the common case needs nothing. Override it to translate:
-     * the package never sees the string and does not care where it came from, which is
-     * why there is no dependency on any translation package here.
-     *
-     *     public function label(): string
-     *     {
-     *         return text('meters.members', 'Members');
-     *     }
+     * @return string
      */
     public function label(): string
     {
         return Str::headline($this->handle);
     }
 
-    /** The ceiling for this account's plan. -1 is unlimited. */
+    /**
+     * The ceiling for the current plan. -1 is unlimited.
+     *
+     * @return int
+     */
     public function limit(): int
     {
         return $this->plan()->limit($this->handle);
     }
 
-    /** Whether one more may be created. */
+    /**
+     * Whether more may be created.
+     *
+     * @param  int  $additional
+     * @return bool
+     */
     public function allows(int $additional = 1): bool
     {
         $limit = $this->limit();
@@ -91,7 +84,11 @@ abstract class Meter implements MeterContract
         return $limit < 0 || ($this->count() + $additional) <= $limit;
     }
 
-    /** @return array{handle: string, label: string, count: int, limit: int} */
+    /**
+     * The meter as a row for a usage screen.
+     *
+     * @return array{handle: string, label: string, count: int, limit: int}
+     */
     public function toArray(): array
     {
         return [
@@ -102,7 +99,23 @@ abstract class Meter implements MeterContract
         ];
     }
 
-    /** Whatever plan the thing being metered is on. Never null, so no null checks. */
+    /**
+     * The handle a class name implies: MemberMeter counts `members`.
+     *
+     * @return string
+     */
+    protected static function handleFromClassName(): string
+    {
+        $subject = preg_replace('/Meter$/', '', class_basename(static::class));
+
+        return Str::snake(Str::pluralStudly($subject));
+    }
+
+    /**
+     * The plan the metered model is on.
+     *
+     * @return Plan
+     */
     protected function plan(): Plan
     {
         return method_exists($this->meterable, 'plan')

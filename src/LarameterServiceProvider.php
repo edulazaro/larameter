@@ -11,27 +11,27 @@ use Illuminate\Support\ServiceProvider;
 
 class LarameterServiceProvider extends ServiceProvider
 {
+    /**
+     * Register the package's bindings.
+     *
+     * @return void
+     */
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/larameter.php', 'larameter');
-
-        // SCOPED, not singleton. The meter memoises hasCreditsMemoized(), and a queue
-        // worker keeps singletons alive between jobs: an account that ran out would go on
-        // spending for as long as that worker lived. Scoped bindings are flushed between
-        // jobs and between Octane requests, which is exactly the lifetime the memo is
-        // meant to have.
         $this->app->scoped(UsageTracker::class);
     }
 
+    /**
+     * Bootstrap the package's observers, commands and publishable files.
+     *
+     * @return void
+     */
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
             $this->commands([MakeMeterCommand::class]);
         }
-
-        // Every row moves the balance, whoever wrote it. Keeping this out of UsageTracker
-        // means a backfill or a console command cannot record consumption nobody is
-        // charged for, nor hand out credits that never reach the balance.
         UsageRecord::observe(UsageRecordObserver::class);
         Deposit::observe(DepositObserver::class);
 

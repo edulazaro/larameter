@@ -7,50 +7,42 @@ use EduLazaro\Larameter\Contracts\Meter;
 use ReflectionClass;
 
 /**
- * Put this on the model a plan caps, and list its meters:
+ * Put this on a model whose plan caps how many of something it may have.
  *
- *     class Organization extends Model
- *     {
- *         use HasCredits, HasMeters;
+ * Declare the meters as a plain list, since a meter knows its own handle:
  *
- *         protected array $meters = [MemberMeter::class, CaseMeter::class];
- *     }
+ *     protected array $meters = [MemberMeter::class, CaseMeter::class];
  *
- * A plain list and not a map, because a meter already knows its own key.
- *
- * Three ways in, and they combine: the $meters property, the #[MeteredBy] attribute, and
- * meter() from outside. Declaring the same meter twice does not double it.
- *
- * Then nothing has to remember how to count:
- *
- *     $org->canCreate('members');
- *     $org->usageSummary();
+ * The #[MeteredBy] attribute does the same, and meter() adds one from outside for a
+ * model you cannot edit. Declaring the same meter twice does not double it.
  */
 trait HasMeters
 {
     /**
-     * From #[MeteredBy], read once per model. Kept apart from the ones registered at
-     * runtime so that flushing those does not also erase what the class declares.
+     * array<int, class-string<Meter>>> From #[MeteredBy], read once.
      *
-     * @var array<string, array<int, class-string<Meter>>>
+     * @var array<string,
      */
     private static array $attributeMeters = [];
 
     /**
-     * Registered from outside the class, keyed by model so subclasses do not share.
+     * array<int, class-string<Meter>>> Registered at runtime.
      *
-     * @var array<string, array<int, class-string<Meter>>>
+     * @var array<string,
      */
     private static array $registeredMeters = [];
 
-    /** @var array<string, Meter> Resolved for this instance only. */
+    /**
+     * Meter> Resolved once per instance.
+     *
+     * @var array<string,
+     */
     private array $meterInstances = [];
 
     /**
-     * Read the attributes, once per model, the first time Eloquent boots it.
+     * Read the #[MeteredBy] attributes. Called by Eloquent when the model boots.
      *
-     * Named bootHasMeters so Eloquent's own trait booting picks it up. Same mechanism as
-     * larakeep uses for #[KeptBy].
+     * @return void
      */
     public static function bootHasMeters(): void
     {
@@ -61,12 +53,10 @@ trait HasMeters
     }
 
     /**
-     * Add a meter to a model you cannot edit: a module that brings its own relation and
-     * wants it capped, or a meter that only applies when something is switched on.
+     * Add a meter from outside the class.
      *
-     * The same pair as $casts and mergeCasts(): the property declares, this one adds.
-     *
-     * @param class-string<Meter> $meterClass
+     * @param  class-string<Meter>  $meterClass
+     * @return void
      */
     public static function meter(string $meterClass): void
     {
@@ -78,17 +68,20 @@ trait HasMeters
     }
 
     /**
-     * Drop everything registered from outside, for this model.
+     * Drop meters registered at runtime for this model.
      *
-     * The store is static, so without this a test that registers a meter leaks it into
-     * every test that runs after it, and the suite starts depending on its own order.
+     * @return void
      */
     public static function flushRegisteredMeters(): void
     {
         unset(static::$registeredMeters[static::class]);
     }
 
-    /** @return array<string, Meter> Keyed by the meter's key. */
+    /**
+     * Every meter in effect, keyed by handle.
+     *
+     * @return array<string, Meter>
+     */
     public function meters(): array
     {
         if ($this->meterInstances !== []) {
@@ -109,23 +102,34 @@ trait HasMeters
         return $this->meterInstances;
     }
 
-    public function meterFor(string $key): ?Meter
+    /**
+     * One meter by handle.
+     *
+     * @param  string  $handle
+     * @return Meter|null
+     */
+    public function meterFor(string $handle): ?Meter
     {
-        return $this->meters()[$key] ?? null;
+        return $this->meters()[$handle] ?? null;
     }
 
     /**
-     * Whether one more of something may be created.
+     * Whether more of a resource may be created. Unmetered resources are unlimited.
      *
-     * A resource with NO meter is unlimited. Getting that backwards would mean a package
-     * you just installed refuses to create things it was never told to count.
+     * @param  string  $handle
+     * @param  int  $additional
+     * @return bool
      */
-    public function canCreate(string $key, int $additional = 1): bool
+    public function canCreate(string $handle, int $additional = 1): bool
     {
-        return $this->meterFor($key)?->allows($additional) ?? true;
+        return $this->meterFor($handle)?->allows($additional) ?? true;
     }
 
-    /** Everything declared, for a usage screen. */
+    /**
+     * Every meter with its count and ceiling, for a usage screen.
+     *
+     * @return array<int, array{handle: string, label: string, count: int, limit: int}>
+     */
     public function usageSummary(): array
     {
         return array_map(fn (Meter $meter) => $meter->toArray(), array_values($this->meters()));

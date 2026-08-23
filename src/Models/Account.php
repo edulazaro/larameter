@@ -14,17 +14,12 @@ use Illuminate\Support\Facades\DB;
 /**
  * The credit account of one thing you bill.
  *
- * It holds only what does not expire: the plan, and credits bought on top. Consumption
- * lives in the windows, because an allowance is always an allowance PER something.
+ * Holds only what does not expire: the plan and credits bought on top. Consumption
+ * lives in the windows, since an allowance is always an allowance per something.
  *
- * Two buckets, and the plan goes first:
- *
- *   - the plan allowance, bounded by every window it declares and reset with them,
- *   - purchased credits, which sit outside all of them and survive every reset.
- *
- * Credits paid for out of the purchased bucket are deliberately NOT counted against the
- * windows. That is what makes topping up work the way people expect: you run out of
- * session, you buy more usage, you carry on, and your week has not moved meanwhile.
+ * Two buckets, and the plan goes first. Purchased credits sit outside every window and
+ * what they pay for is not counted against one, so running out of session, buying more
+ * and carrying on leaves the week where it was.
  */
 class Account extends Model
 {
@@ -41,33 +36,58 @@ class Account extends Model
         'purchased_credits' => 'integer',
     ];
 
-    /** Memoised: headroom is asked several times per request and resolving can hit Stripe. */
+    /**
+     * Memoised: headroom is asked repeatedly and resolving may query.
+     *
+     * @var Plan|null
+     */
     private ?Plan $cachedPlan = null;
 
-    /** Whatever you bill: an organisation, a user, a workspace. */
+    /**
+     * Whatever is being billed: an organisation, a user, a workspace.
+     *
+     * @return MorphTo
+     */
     public function meterable(): MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * Every window this account spends against.
+     *
+     * @return HasMany
+     */
     public function windows(): HasMany
     {
         return $this->hasMany(Window::class, 'account_id');
     }
 
+    /**
+     * Every credit added to this account.
+     *
+     * @return HasMany
+     */
     public function deposits(): HasMany
     {
         return $this->hasMany(Deposit::class, 'account_id');
     }
 
+    /**
+     * Every credit charged to this account.
+     *
+     * @return HasMany
+     */
     public function usage(): HasMany
     {
         return $this->hasMany(UsageRecord::class, 'account_id');
     }
 
     /**
-     * The account for a model, created on first sight so nothing has to be provisioned
-     * up front.
+     * The account for a model, created on first sight.
+     *
+     * @param  Model  $meterable
+     * @return static
      */
     public static function for(Model $meterable): static
     {
@@ -79,8 +99,6 @@ class Account extends Model
         try {
             return static::firstOrCreate($keys, ['plan' => config('larameter.default_plan')]);
         } catch (QueryException $e) {
-            // Two requests hit a new account at once and the unique index caught the
-            // loser. The row exists now, which is all we wanted.
             $existing = static::where($keys)->first();
 
             if (! $existing) {
@@ -94,12 +112,11 @@ class Account extends Model
     /**
      * The plan whose allowance this account spends.
      *
-     * Asks the thing being metered first, because with HasPlans on it the plan is worked
-     * out from a subscription or an override and the stored column is only a fallback.
-     * Reading the column here regardless was a real bug: plan() answered 'pro' while the
-     * credits came from whatever 'free' granted, and nothing said so.
+     * Asks the metered model first: with HasPlans the plan is resolved and the stored
+     * column is only a fallback. Reading the column regardless would let plan() answer
+     * one thing while the credits came from another.
      *
-     * The stored column is still the answer for a model with no plans at all.
+     * @return Plan
      */
     public function plan(): Plan
     {
@@ -116,21 +133,17 @@ class Account extends Model
         return $this->cachedPlan = Plans::find($this->plan);
     }
 
-    // ─── Reading ────────────────────────────────────────────────────
-
     /**
-     * What the PLAN still allows, in whichever window is tightest.
+     * What the plan still allows, in whichever window is tightest.
      *
-     * Reads only. An expired window is reported as full WITHOUT being restarted: on a
-     * rolling window the row is the clock, so restarting it here would mean that opening
-     * the app to see your balance burned the session.
+     * Reads only: an expired window reports as full without being restarted, or opening
+     * the app to check a balance would start a session.
+     *
+     * @return int
      */
     public function headroom(): int
     {
         $declared = Window::declared();
-
-        // No windows declared is an explicit opt-out of allowance metering: usage is
-        // recorded, nothing is refused, and only purchased credits mean anything.
         if ($declared === []) {
             return PHP_INT_MAX;
         }
@@ -139,9 +152,6 @@ class Account extends Model
         $headroom = PHP_INT_MAX;
 
         foreach (array_keys($declared) as $key) {
-            // Validates the declaration on every read. Without this a window with no
-            // length would work until the first row of it expired, which is days later
-            // and nowhere near the config that caused it.
             Window::lengthOf($key);
 
             $allowance = $this->plan()->credits($key);
@@ -158,7 +168,11 @@ class Account extends Model
         return $headroom;
     }
 
-    /** Plan allowance left, plus anything bought on top. */
+    /**
+     * Plan allowance left, plus anything purchased.
+     *
+     * @return int
+     */
     public function remaining(): int
     {
         $headroom = $this->headroom();
@@ -168,12 +182,22 @@ class Account extends Model
             : $headroom + $this->purchased_credits;
     }
 
+    /**
+     * Whether there is enough left to spend.
+     *
+     * @param  int  $credits
+     * @return bool
+     */
     public function hasCredits(int $credits = 1): bool
     {
         return $this->remaining() >= $credits;
     }
 
-    /** When the tightest window lets them spend again, or null if nothing is blocking. */
+    /**
+     * When the tightest window allows spending again, or null if nothing is blocking.
+     *
+     * @return \DateTimeInterface|null
+     */
     public function nextResetAt(): ?\DateTimeInterface
     {
         if ($this->headroom() > 0 || $this->purchased_credits > 0) {
@@ -187,21 +211,14 @@ class Account extends Model
             ->first();
     }
 
-    // ─── Spending ───────────────────────────────────────────────────
-
     /**
-     * Take credits off the balance. Plan allowance first, purchased for the overflow.
+     * Take credits off the balance, plan allowance first.
      *
-     * Locked and in a transaction rather than read-then-write: the split needs to know
-     * how much allowance is left, and two concurrent charges reading the same figure
-     * would each bill the allowance for it and leave the purchased bucket untouched.
-     * Credits given away for free, visible only as a slow drift.
+     * The two totals add to less than what was charged exactly when the account
+     * overdrew, which is how an overdraft stays visible.
      *
-     * The account lock also serialises the window rows, which are written nowhere else.
-     *
-     * @return array{plan: int, purchased: int} what each bucket actually paid. They add
-     *         up to less than what was charged exactly when the account overdrew, which
-     *         is how an overdraft stays visible instead of being rounded away.
+     * @param  int  $credits
+     * @return array{plan: int, purchased: int}
      */
     public function apply(int $credits): array
     {
@@ -212,16 +229,16 @@ class Account extends Model
         }
 
         return DB::transaction(function () use ($credits, $nothing) {
-            /** @var static|null $locked */
+            /**
+             * $locked.
+             *
+             * @var static|null
+             */
             $locked = static::query()->lockForUpdate()->find($this->getKey());
 
             if (! $locked) {
                 return $nothing;
             }
-
-            // Hand over what we already hold. Without this the locked copy goes and
-            // fetches the meterable again, and resolves its plan against a model that
-            // knows nothing of the request it is in.
             if ($this->relationLoaded('meterable')) {
                 $locked->setRelation('meterable', $this->getRelation('meterable'));
             }
@@ -231,9 +248,6 @@ class Account extends Model
             $headroom = $locked->headroom();
             $fromPlan = $headroom === PHP_INT_MAX ? $credits : min($credits, $headroom);
             $overflow = $credits - $fromPlan;
-
-            // Only touch the windows when the plan is actually paying. Opening a rolling
-            // window to record a zero would start somebody's session for nothing.
             if ($fromPlan > 0) {
                 foreach (array_keys(Window::declared()) as $key) {
                     $window = $locked->windows->firstWhere('key', $key);
@@ -255,9 +269,6 @@ class Account extends Model
 
                 $locked->unsetRelation('windows');
             }
-
-            // Clamp rather than store a negative: a turn that started with credit is
-            // allowed to finish, and a balance should not have to be read as a debt.
             $fromPurchased = min($overflow, $locked->purchased_credits);
 
             if ($fromPurchased > 0) {
@@ -272,41 +283,31 @@ class Account extends Model
         });
     }
 
-    // ─── Plan and top-ups ───────────────────────────────────────────
-
     /**
-     * Move to a plan, or to none.
+     * Store a plan on the account.
      *
-     * The windows are NOT restarted: an upgrade mid-week raises the ceiling over what has
-     * already been spent, rather than handing a second allowance to whoever works out
-     * they can upgrade and downgrade in the same afternoon.
+     * Windows are not restarted, so an upgrade raises the ceiling over what was already
+     * spent rather than granting a second allowance.
+     *
+     * @param  string|null  $handle
+     * @return void
      */
-    public function setPlan(?string $key): void
+    public function setPlan(?string $handle): void
     {
-        $this->plan = $key;
+        $this->plan = $handle;
         $this->cachedPlan = null;
         $this->save();
     }
 
     /**
-     * Line the billing windows up with a period that has just started.
+     * Line the fixed windows up with a period that has just started.
      *
-     * Call it when they first pay and on every renewal, passing the timestamp Stripe
-     * gives you. Without it the grid is laid down on first USE, so somebody who tried
-     * the app on Tuesday and paid on Thursday gets a fresh allowance five days after
-     * paying, every month.
+     * On first payment and on renewal, never on a plan change: that door stays shut so
+     * nobody can upgrade for a fresh allowance and downgrade again. Rolling windows are
+     * left alone, and the same instant twice does nothing.
      *
-     * NEVER call it on a plan change. That is the door this package keeps shut on
-     * purpose: upgrade, get a new allowance, downgrade, repeat. setPlan() does not touch
-     * it, and neither should you.
-     *
-     * Two things keep it from being abused anyway:
-     *
-     *   - rolling windows are left alone. A session is not a billing period, and a
-     *     renewal has no business handing somebody back the five hours they just spent.
-     *   - passing the same instant twice does nothing. Since the instant comes from
-     *     Stripe and Stripe gives you one per period, it cannot be replayed for a
-     *     second allowance.
+     * @param  \DateTimeInterface|null  $at
+     * @return void
      */
     public function startPeriod(?\DateTimeInterface $at = null): void
     {
@@ -333,7 +334,16 @@ class Account extends Model
         $this->unsetRelation('windows');
     }
 
-    /** Credits in. The observer on Deposit moves purchased_credits to match. */
+    /**
+     * Record credits in. The observer on Deposit moves the balance to match.
+     *
+     * @param  int  $credits
+     * @param  string  $reason
+     * @param  Model|null  $source
+     * @param  string|null  $note
+     * @param  array<string, mixed>  $metadata
+     * @return Deposit
+     */
     public function deposit(
         int $credits,
         string $reason = 'purchase',

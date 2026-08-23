@@ -13,6 +13,12 @@ use EduLazaro\Larameter\Models\UsageRecord;
  */
 class UsageRecordObserver
 {
+    /**
+     * Take the charged credits off the balance, and record where they came from.
+     *
+     * @param  UsageRecord  $record
+     * @return void
+     */
     public function created(UsageRecord $record): void
     {
         if ($record->credits <= 0) {

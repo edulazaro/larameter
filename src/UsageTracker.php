@@ -7,11 +7,11 @@ use EduLazaro\Larameter\Models\UsageRecord;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Charges an account and says whether it may spend more.
+ * Charges an account and answers whether it may spend more.
  *
- * Nothing here computes a balance: it writes a usage row, and the observer on that row
- * moves the account and its windows. Reading a balance is a row and its windows, never an
- * aggregate over the usage table.
+ * Nothing here computes a balance: it writes a usage row and the observer on that row
+ * moves the account and its windows. Reading a balance is a row and its windows, never
+ * an aggregate over the usage table.
  *
  * Most apps never touch this class. Put the HasCredits trait on whatever you bill and
  * call the methods it gives you.
@@ -19,23 +19,26 @@ use Illuminate\Database\Eloquent\Model;
 class UsageTracker
 {
     /**
-     * Memo of hasCreditsMemoized(), for as long as this instance lives.
+     * Memo of hasCreditsMemoized(), for the life of this instance.
      *
-     * It is NOT invalidated on charging, deliberately. Otherwise an agentic loop would
-     * re-read on every iteration, since every iteration records. The consequence is that
-     * a turn which starts with credit finishes even if it runs out midway, which is what
-     * you want: stopping halfway leaves the user a half-built answer, and the overshoot
-     * is bounded to one turn.
-     *
-     * See LarameterServiceProvider for why this binding is scoped and not a singleton.
+     * Not invalidated on charging, so a turn that starts with credit finishes even if it
+     * runs out midway. The binding is scoped, so the memo lasts one request or one job.
      *
      * @var array<string, bool>
      */
     private array $memo = [];
 
-    // ─── Charging ───────────────────────────────────────────────────
-
-    /** A fixed-price action: creating a form, sending an email, running an export. */
+    /**
+     * Charge a fixed-price action.
+     *
+     * @param  Model  $meterable
+     * @param  string  $operation
+     * @param  Model|null  $actor
+     * @param  Model|null  $subject
+     * @param  int|null  $credits
+     * @param  array<string, mixed>  $metadata
+     * @return UsageRecord
+     */
     public function charge(
         Model $meterable,
         string $operation,
@@ -58,11 +61,20 @@ class UsageTracker
     }
 
     /**
-     * Metered consumption, priced per unit in and out.
+     * Charge metered consumption, priced per unit in and out.
      *
-     * $operation is what gets priced: for an LLM call that is the model name, so the rate
-     * table reads the way the providers publish theirs. $unit is only a label on the row,
-     * so a bill can tell tokens from minutes.
+     * The operation is what gets priced: for a model call that is the model name, so the
+     * rate table reads the way providers publish theirs. The unit is only a label.
+     *
+     * @param  Model  $meterable
+     * @param  string  $operation
+     * @param  string  $unit
+     * @param  int  $quantityIn
+     * @param  int  $quantityOut
+     * @param  Model|null  $actor
+     * @param  Model|null  $subject
+     * @param  array<string, mixed>  $metadata
+     * @return UsageRecord
      */
     public function meter(
         Model $meterable,
@@ -74,9 +86,6 @@ class UsageTracker
         ?Model $subject = null,
         array $metadata = [],
     ): UsageRecord {
-        // Indexed directly, NOT through dot notation: a name with a dot in it (gpt-5.4)
-        // would be split by config() and fall through to the wildcard, which undercharges
-        // and only shows up on the provider's invoice.
         $rates = config('larameter.rates') ?? [];
         $rate = $rates[$operation] ?? $rates['*'] ?? null;
 
@@ -96,7 +105,12 @@ class UsageTracker
         ]);
     }
 
-    /** What a fixed action costs. Unpriced actions are free rather than a guess. */
+    /**
+     * What a fixed action costs. Unpriced actions are free rather than guessed at.
+     *
+     * @param  string  $operation
+     * @return int
+     */
     public function priceOf(string $operation): int
     {
         $prices = config('larameter.prices') ?? [];
@@ -104,18 +118,18 @@ class UsageTracker
         return (int) ($prices[$operation] ?? 0);
     }
 
-    // ─── Balance ────────────────────────────────────────────────────
-
+    /**
+     * The credit account of a model.
+     *
+     * @param  Model  $meterable
+     * @return Account
+     */
     public function account(Model $meterable): Account
     {
         if ($meterable instanceof Account) {
             return $meterable;
         }
 
-        // Through the trait when there is one, so an eagerly loaded relation is used
-        // instead of queried again. Without this a listing that shows the balance for
-        // fifty accounts runs a hundred queries, and the with() the caller wrote to
-        // avoid exactly that does nothing.
         if (method_exists($meterable, 'creditAccount')) {
             return $meterable->creditAccount();
         }
@@ -123,49 +137,91 @@ class UsageTracker
         return Account::for($meterable);
     }
 
-    /** What the PLAN still allows, in whichever window is tightest. Purchased not counted. */
+    /**
+     * What the plan still allows, in whichever window is tightest.
+     *
+     * @param  Model  $meterable
+     * @return int
+     */
     public function headroom(Model $meterable): int
     {
         return $this->account($meterable)->headroom();
     }
 
-    /** The plan's allowance in one window, ignoring what has been spent of it. */
+    /**
+     * The plan's allowance in one window, before anything is spent of it.
+     *
+     * @param  Model  $meterable
+     * @param  string  $window
+     * @return int
+     */
     public function allowanceIn(Model $meterable, string $window): int
     {
         return $this->account($meterable)->plan()->credits($window);
     }
 
+    /**
+     * Allowance left plus anything purchased.
+     *
+     * @param  Model  $meterable
+     * @return int
+     */
     public function remaining(Model $meterable): int
     {
         return $this->account($meterable)->remaining();
     }
 
+    /**
+     * Whether there is enough left to spend.
+     *
+     * @param  Model  $meterable
+     * @param  int  $credits
+     * @return bool
+     */
     public function hasCredits(Model $meterable, int $credits = 1): bool
     {
         return $this->account($meterable)->hasCredits($credits);
     }
 
-    /** Same answer, cached for this instance. See the note on $memo. */
+    /**
+     * The same answer, cached for the life of this instance.
+     *
+     * @param  Model  $meterable
+     * @param  int  $credits
+     * @return bool
+     */
     public function hasCreditsMemoized(Model $meterable, int $credits = 1): bool
     {
-        $key = $meterable->getMorphClass() . ':' . $meterable->getKey() . ':' . $credits;
+        $key = $meterable->getMorphClass().':'.$meterable->getKey().':'.$credits;
 
         return $this->memo[$key] ??= $this->hasCredits($meterable, $credits);
     }
 
-    // ─── Pricing ────────────────────────────────────────────────────
-
+    /**
+     * Credits for a quantity, at the given rate.
+     *
+     * @param  array<string, mixed>|null  $rate
+     * @param  int  $in
+     * @param  int  $out
+     * @return int
+     */
     private function creditsFor(?array $rate, int $in, int $out): int
     {
         if (! $rate) {
-            // Unpriced units still cost something, or metering an unknown model would be
-            // free and the gap would only show up on the provider's invoice.
             return max(1, (int) ceil(($in + $out) / (int) config('larameter.fallback_units_per_credit', 100)));
         }
 
         return max(1, (int) ceil($this->costFor($rate, $in, $out) * (int) config('larameter.credits_per_unit_cost', 10000)));
     }
 
+    /**
+     * What a quantity cost you, at the given rate.
+     *
+     * @param  array<string, mixed>|null  $rate
+     * @param  int  $in
+     * @param  int  $out
+     * @return float
+     */
     private function costFor(?array $rate, int $in, int $out): float
     {
         if (! $rate) {

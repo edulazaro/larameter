@@ -3,60 +3,78 @@
 namespace EduLazaro\Larameter;
 
 /**
- * One plan, read from wherever your plans live.
+ * A single plan, wrapping the array you defined it in.
  *
- * Holds no data of its own: it wraps the array you already wrote, so that reading a plan
- * is `$plan->allows('api_access')` instead of
- * `config('plans.' . $key . '.features.api_access') ?? false` scattered around, and so
- * that changing the shape of that array is one edit and not thirty.
+ * Holds no data of its own: it reads the config entry so that callers ask
+ * $plan->allows('api_access') instead of digging into nested arrays, and so that
+ * changing the shape of those arrays is one edit.
  *
- * Data is properties, questions are methods. `name` is a property and not a method
- * because a plan name is a product name: Pro, Max, Hyper Team. Nobody translates those,
- * any more than they translate the name of the application.
+ * Generic on purpose. A plan reads the same whether it was resolved from a
+ * subscription, from a column, or from a default: whatever a provider had to know
+ * to answer stays inside that provider.
  */
 class Plan
 {
-    /** The identifier, matching the key of your plans array. */
+    /**
+     * Identifier, matching the key of your plans array.
+     *
+     * @var string
+     */
     public readonly string $handle;
 
-    /** For showing. Falls back to the handle, so it is never empty for no reason. */
+    /**
+     * Display name. Falls back to the handle.
+     *
+     * @var string
+     */
     public readonly string $name;
 
-    /** Whatever unit you wrote it in. The package neither reads nor charges it. */
+    /**
+     * In whatever unit you wrote it. Never read or charged by the package.
+     *
+     * @var int
+     */
     public readonly int $price;
 
     /**
-     * Whether there is a plan at all.
+     * False when there is no plan at all.
      *
-     * plan() never returns null, so nothing downstream needs a null check: an account on
-     * no plan gets one that grants no credits, no features and no ceilings. This is how
-     * you tell that apart from a plan that happens to grant little.
+     * @var bool
      */
     public readonly bool $exists;
 
-    /** @param array<string, mixed> $config */
-    public function __construct(
-        string $handle,
-        protected array $config = [],
-    ) {
+    /**
+     * Create a plan from its definition.
+     *
+     * @param  string  $handle
+     * @param  array<string, mixed>  $config
+     * @return void
+     */
+    public function __construct(string $handle, protected array $config = [])
+    {
         $this->handle = $handle;
         $this->exists = $handle !== '';
         $this->name = (string) ($config['name'] ?? $handle);
         $this->price = (int) ($config['price'] ?? 0);
     }
 
-    public function priceId(): ?string
-    {
-        return $this->config[(string) config('larameter.price_id_key', 'stripe_price_id')] ?? null;
-    }
-
-    /** Absent means off: a feature is something you unlock. */
+    /**
+     * Whether the plan includes a feature. Absent means no.
+     *
+     * @param  string  $feature
+     * @return bool
+     */
     public function allows(string $feature): bool
     {
         return (bool) ($this->config['features'][$feature] ?? false);
     }
 
-    /** Allowance in one window. 0 with no credits at all, -1 unlimited. */
+    /**
+     * Allowance in one window. Zero without credits, -1 unlimited.
+     *
+     * @param  string  $window
+     * @return int
+     */
     public function credits(string $window): int
     {
         $credits = $this->config['credits'] ?? [];
@@ -68,19 +86,34 @@ class Plan
         return (int) ($credits[$window] ?? Plans::UNLIMITED);
     }
 
-    /** Absent means unlimited: a restriction nobody wrote down never applied. */
+    /**
+     * Ceiling on a resource. Absent means unlimited.
+     *
+     * @param  string  $resource
+     * @return int
+     */
     public function limit(string $resource): int
     {
         return (int) ($this->config['limits'][$resource] ?? Plans::UNLIMITED);
     }
 
-    /** Anything else you keep in there. */
+    /**
+     * Anything else kept in the plan definition.
+     *
+     * @param  string  $key
+     * @param  mixed  $default
+     * @return mixed
+     */
     public function get(string $key, mixed $default = null): mixed
     {
         return data_get($this->config, $key, $default);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * The raw plan definition.
+     *
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return $this->config;

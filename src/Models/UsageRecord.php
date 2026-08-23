@@ -9,14 +9,12 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 /**
  * One line of consumption. Append-only, and never the source of the balance.
  *
- * The balance lives on the Account. This table is what you audit with, invoice from and
- * reconcile against when the two disagree. A consequence worth knowing: deleting rows
- * here does NOT hand anybody their credits back, which is the right way round.
+ * The balance lives on the Account; this is what you audit with, invoice from and
+ * reconcile against. Deleting rows here does not hand anybody their credits back.
  *
- * The split between what the plan covered and what came out of purchased credits is
- * recorded rather than recomputed: rates and plans change, and a bill from last March has
- * to still add up next year. When the two add up to less than `credits`, the difference
- * is an overdraft, which is how one stays visible instead of being rounded away.
+ * The split between plan and purchased is recorded rather than recomputed, because
+ * rates and plans change and an old bill still has to add up. The two adding to less
+ * than `credits` is an overdraft.
  */
 class UsageRecord extends Model
 {
@@ -49,18 +47,31 @@ class UsageRecord extends Model
         'metadata' => 'array',
     ];
 
+    /**
+     * The account this usage was charged to.
+     *
+     * @return BelongsTo
+     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'account_id');
     }
 
-    /** Who triggered it, when there was somebody. Null for scheduled work. */
+    /**
+     * Who triggered it. Null for scheduled work.
+     *
+     * @return MorphTo
+     */
     public function actor(): MorphTo
     {
         return $this->morphTo();
     }
 
-    /** What it was about: a case, a document, a conversation. For tracing spend back. */
+    /**
+     * What it was about, for tracing spend back to it.
+     *
+     * @return MorphTo
+     */
     public function subject(): MorphTo
     {
         return $this->morphTo();

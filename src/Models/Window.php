@@ -11,9 +11,9 @@ use InvalidArgumentException;
 /**
  * What one account has spent of its plan allowance inside one window.
  *
- * The row is the clock. It is created when credits are first charged against that window
- * and never on a read, which for a rolling window is the whole difference between asking
- * how much you have left and burning five hours by asking.
+ * The row is the clock: created when credits are first charged against that window and
+ * never on a read. For a rolling window that is the difference between asking how much
+ * is left and spending five hours by asking.
  */
 class Window extends Model
 {
@@ -31,25 +31,44 @@ class Window extends Model
         'started_at' => 'datetime',
     ];
 
+    /**
+     * The account this window belongs to.
+     *
+     * @return BelongsTo
+     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'account_id');
     }
 
-    // ─── Definition ─────────────────────────────────────────────────
-
-    /** @return array<string, array> */
+    /**
+     * Every window declared in config.
+     *
+     * @return array<string, array<string, mixed>>
+     */
     public static function declared(): array
     {
         return config('larameter.windows') ?? [];
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * One window's declaration.
+     *
+     * @param  string  $key
+     * @return array<string, mixed>
+     */
     public static function definition(string $key): array
     {
         return static::declared()[$key] ?? [];
     }
 
+    /**
+     * How long a window lasts.
+     *
+     * @param  string  $key
+     * @return CarbonInterval
+     * @throws InvalidArgumentException When the window declares no length.
+     */
     public static function lengthOf(string $key): CarbonInterval
     {
         $d = static::definition($key);
@@ -60,10 +79,6 @@ class Window extends Model
             'hours' => (int) ($d['hours'] ?? 0),
             'minutes' => (int) ($d['minutes'] ?? 0),
         ];
-
-        // A window of no length would make the fixed-anchor advance spin forever looking
-        // for a period that ends after now. Fail here instead, where the message can name
-        // the window you got wrong.
         if (array_sum($units) <= 0) {
             throw new InvalidArgumentException(
                 "larameter: window [{$key}] has no length. Give it minutes, hours, days or months.",
@@ -76,37 +91,54 @@ class Window extends Model
             ->minutes($units['minutes']);
     }
 
-    /** 'rolling' or 'fixed'. See the config for what each one is for. */
+    /**
+     * Whether the next window starts on next use, or on a fixed grid.
+     *
+     * @param  string  $key
+     * @return string
+     */
     public static function anchorOf(string $key): string
     {
         return static::definition($key)['anchor'] ?? 'fixed';
     }
 
-    // ─── State ──────────────────────────────────────────────────────
-
+    /**
+     * When the current window runs out.
+     *
+     * @return Carbon
+     */
     public function endsAt(): Carbon
     {
         return $this->started_at->copy()->add(static::lengthOf($this->key));
     }
 
+    /**
+     * Whether the window has run out.
+     *
+     * @return bool
+     */
     public function isExpired(): bool
     {
-        // Not isPast(): the exact boundary instant belongs to the new window, not to the
-        // one that has just run out.
         return ! $this->endsAt()->isFuture();
     }
 
-    /** What the plan has covered in the window that is running now. */
+    /**
+     * What the plan has covered in the window running now.
+     *
+     * @return int
+     */
     public function currentUsage(): int
     {
         return $this->isExpired() ? 0 : $this->credits_used;
     }
 
     /**
-     * Open the window that is running now, wiping the count.
+     * Open the window running now, wiping the count.
      *
-     * Call this only when credits are actually being spent. On a rolling window it starts
-     * the clock, and starting it costs the user real time.
+     * Only when credits are actually being spent: on a rolling window this starts the
+     * clock, and starting it costs the user real time.
+     *
+     * @return void
      */
     public function restart(): void
     {
@@ -118,10 +150,6 @@ class Window extends Model
 
             return;
         }
-
-        // Fixed: the grid was laid down long ago. Walk it to the period covering now,
-        // one at a time, so an account dormant for four weeks gets one allowance back
-        // and not four.
         $length = static::lengthOf($this->key);
         $start = $this->started_at->copy();
 

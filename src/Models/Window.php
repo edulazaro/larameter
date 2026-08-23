@@ -54,7 +54,7 @@ class Window extends Model
     /**
      * One window's declaration.
      *
-     * @param  string  $key
+     * @param string $key
      * @return array<string, mixed>
      */
     public static function definition(string $key): array
@@ -65,7 +65,7 @@ class Window extends Model
     /**
      * How long a window lasts.
      *
-     * @param  string  $key
+     * @param string $key
      * @return CarbonInterval
      * @throws InvalidArgumentException When the window declares no length.
      */
@@ -94,7 +94,7 @@ class Window extends Model
     /**
      * Whether the next window starts on next use, or on a fixed grid.
      *
-     * @param  string  $key
+     * @param string $key
      * @return string
      */
     public static function anchorOf(string $key): string

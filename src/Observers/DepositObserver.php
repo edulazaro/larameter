@@ -17,7 +17,7 @@ class DepositObserver
     /**
      * Move the balance to match a deposit that was just written.
      *
-     * @param  Deposit  $deposit
+     * @param Deposit $deposit
      * @return void
      */
     public function created(Deposit $deposit): void

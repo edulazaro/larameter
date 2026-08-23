@@ -18,25 +18,18 @@ use Illuminate\Database\Eloquent\Model;
  */
 class UsageTracker
 {
-    /**
-     * Memo of hasCreditsMemoized(), for the life of this instance.
-     *
-     * Not invalidated on charging, so a turn that starts with credit finishes even if it
-     * runs out midway. The binding is scoped, so the memo lasts one request or one job.
-     *
-     * @var array<string, bool>
-     */
+    /** @var array<string, bool> Memo of hasCreditsMemoized(), for the life of this instance. */
     private array $memo = [];
 
     /**
      * Charge a fixed-price action.
      *
-     * @param  Model  $meterable
-     * @param  string  $operation
-     * @param  Model|null  $actor
-     * @param  Model|null  $subject
-     * @param  int|null  $credits
-     * @param  array<string, mixed>  $metadata
+     * @param Model $meterable
+     * @param string $operation
+     * @param Model|null $actor
+     * @param Model|null $subject
+     * @param int|null $credits
+     * @param array<string, mixed> $metadata
      * @return UsageRecord
      */
     public function charge(
@@ -66,14 +59,14 @@ class UsageTracker
      * The operation is what gets priced: for a model call that is the model name, so the
      * rate table reads the way providers publish theirs. The unit is only a label.
      *
-     * @param  Model  $meterable
-     * @param  string  $operation
-     * @param  string  $unit
-     * @param  int  $quantityIn
-     * @param  int  $quantityOut
-     * @param  Model|null  $actor
-     * @param  Model|null  $subject
-     * @param  array<string, mixed>  $metadata
+     * @param Model $meterable
+     * @param string $operation
+     * @param string $unit
+     * @param int $quantityIn
+     * @param int $quantityOut
+     * @param Model|null $actor
+     * @param Model|null $subject
+     * @param array<string, mixed> $metadata
      * @return UsageRecord
      */
     public function meter(
@@ -108,7 +101,7 @@ class UsageTracker
     /**
      * What a fixed action costs. Unpriced actions are free rather than guessed at.
      *
-     * @param  string  $operation
+     * @param string $operation
      * @return int
      */
     public function priceOf(string $operation): int
@@ -121,7 +114,7 @@ class UsageTracker
     /**
      * The credit account of a model.
      *
-     * @param  Model  $meterable
+     * @param Model $meterable
      * @return Account
      */
     public function account(Model $meterable): Account
@@ -140,7 +133,7 @@ class UsageTracker
     /**
      * What the plan still allows, in whichever window is tightest.
      *
-     * @param  Model  $meterable
+     * @param Model $meterable
      * @return int
      */
     public function headroom(Model $meterable): int
@@ -151,8 +144,8 @@ class UsageTracker
     /**
      * The plan's allowance in one window, before anything is spent of it.
      *
-     * @param  Model  $meterable
-     * @param  string  $window
+     * @param Model $meterable
+     * @param string $window
      * @return int
      */
     public function allowanceIn(Model $meterable, string $window): int
@@ -163,7 +156,7 @@ class UsageTracker
     /**
      * Allowance left plus anything purchased.
      *
-     * @param  Model  $meterable
+     * @param Model $meterable
      * @return int
      */
     public function remaining(Model $meterable): int
@@ -174,8 +167,8 @@ class UsageTracker
     /**
      * Whether there is enough left to spend.
      *
-     * @param  Model  $meterable
-     * @param  int  $credits
+     * @param Model $meterable
+     * @param int $credits
      * @return bool
      */
     public function hasCredits(Model $meterable, int $credits = 1): bool
@@ -186,8 +179,8 @@ class UsageTracker
     /**
      * The same answer, cached for the life of this instance.
      *
-     * @param  Model  $meterable
-     * @param  int  $credits
+     * @param Model $meterable
+     * @param int $credits
      * @return bool
      */
     public function hasCreditsMemoized(Model $meterable, int $credits = 1): bool
@@ -200,9 +193,9 @@ class UsageTracker
     /**
      * Credits for a quantity, at the given rate.
      *
-     * @param  array<string, mixed>|null  $rate
-     * @param  int  $in
-     * @param  int  $out
+     * @param array<string, mixed>|null $rate
+     * @param int $in
+     * @param int $out
      * @return int
      */
     private function creditsFor(?array $rate, int $in, int $out): int
@@ -217,9 +210,9 @@ class UsageTracker
     /**
      * What a quantity cost you, at the given rate.
      *
-     * @param  array<string, mixed>|null  $rate
-     * @param  int  $in
-     * @param  int  $out
+     * @param array<string, mixed>|null $rate
+     * @param int $in
+     * @param int $out
      * @return float
      */
     private function costFor(?array $rate, int $in, int $out): float

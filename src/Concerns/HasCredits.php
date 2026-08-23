@@ -70,7 +70,7 @@ trait HasCredits
     /**
      * Whether there is enough left to spend.
      *
-     * @param  int  $credits
+     * @param int $credits
      * @return bool
      */
     public function hasCredits(int $credits = 1): bool
@@ -101,7 +101,7 @@ trait HasCredits
     /**
      * What the plan grants in one window, before anything is spent.
      *
-     * @param  string  $window
+     * @param string $window
      * @return int
      */
     public function creditAllowanceIn(string $window): int
@@ -122,10 +122,10 @@ trait HasCredits
     /**
      * Charge a fixed-price action.
      *
-     * @param  string  $operation
-     * @param  Model|null  $actor
-     * @param  Model|null  $subject
-     * @param  int|null  $credits
+     * @param string $operation
+     * @param Model|null $actor
+     * @param Model|null $subject
+     * @param int|null $credits
      * @return UsageRecord
      */
     public function chargeCredits(
@@ -140,12 +140,12 @@ trait HasCredits
     /**
      * Charge metered consumption, priced per unit in and out.
      *
-     * @param  string  $operation
-     * @param  string  $unit
-     * @param  int  $quantityIn
-     * @param  int  $quantityOut
-     * @param  Model|null  $actor
-     * @param  Model|null  $subject
+     * @param string $operation
+     * @param string $unit
+     * @param int $quantityIn
+     * @param int $quantityOut
+     * @param Model|null $actor
+     * @param Model|null $subject
      * @return UsageRecord
      */
     public function meterCredits(
@@ -165,7 +165,7 @@ trait HasCredits
      * A fallback, not the source: with HasPlans the plan is resolved, and this is only
      * reached when no provider answers.
      *
-     * @param  string|null  $handle
+     * @param string|null $handle
      * @return void
      */
     public function setCreditPlan(?string $handle): void
@@ -183,7 +183,7 @@ trait HasCredits
      * Call it on first payment and on renewal. Never on a plan change: upgrade, new
      * allowance, downgrade, repeat is the door this keeps shut.
      *
-     * @param  \DateTimeInterface|null  $at
+     * @param \DateTimeInterface|null $at
      * @return void
      */
     public function startCreditPeriod(?\DateTimeInterface $at = null): void
@@ -194,11 +194,11 @@ trait HasCredits
     /**
      * Credits in: a purchase, a gift, a refund, a correction. Negative is allowed.
      *
-     * @param  int  $credits
-     * @param  string  $reason
-     * @param  Model|null  $source
-     * @param  string|null  $note
-     * @param  array<string, mixed>  $metadata
+     * @param int $credits
+     * @param string $reason
+     * @param Model|null $source
+     * @param string|null $note
+     * @param array<string, mixed> $metadata
      * @return Deposit
      */
     public function depositCredits(

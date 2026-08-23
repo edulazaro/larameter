@@ -17,7 +17,7 @@ interface PlanProvider
     /**
      * The plan this model is on, or null to let the next provider answer.
      *
-     * @param  Model  $model
+     * @param Model $model
      * @return Plan|null
      */
     public function provide(Model $model): ?Plan;

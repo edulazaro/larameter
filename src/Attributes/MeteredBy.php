@@ -15,7 +15,7 @@ class MeteredBy
     /**
      * Create a new attribute instance.
      *
-     * @param  string  $meterClass
+     * @param string $meterClass
      * @return void
      */
     public function __construct(public string $meterClass)

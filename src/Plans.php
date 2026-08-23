@@ -11,11 +11,7 @@ namespace EduLazaro\Larameter;
  */
 class Plans
 {
-    /**
-     * Returned for a limit or an allowance that has no ceiling.
-     *
-     * @var int
-     */
+    /** @var int Returned for a limit or an allowance that has no ceiling. */
     public const UNLIMITED = -1;
 
     /**
@@ -31,7 +27,7 @@ class Plans
     /**
      * Whether a handle names a defined plan.
      *
-     * @param  string|null  $handle
+     * @param string|null $handle
      * @return bool
      */
     public static function exists(?string $handle): bool
@@ -42,7 +38,7 @@ class Plans
     /**
      * A plan by handle. An unknown handle gives one that grants nothing.
      *
-     * @param  string|null  $handle
+     * @param string|null $handle
      * @return Plan
      */
     public static function find(?string $handle): Plan

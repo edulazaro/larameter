@@ -38,7 +38,7 @@ class MakeMeterCommand extends GeneratorCommand
      * ends up with several models that have caps. Flat, App\Meters would mix the seats of
      * an organisation with the members of a case and you would be reading class names to
      * tell them apart.     *
-     * @param  string  $rootNamespace
+     * @param string $rootNamespace
      * @return string
 
      */
@@ -58,8 +58,8 @@ class MakeMeterCommand extends GeneratorCommand
     /**
      * Fill the stub in from the class name and the optional model.
      *
-     * @param  string  $stub
-     * @param  string  $name
+     * @param string $stub
+     * @param string $name
      * @return string
      */
     protected function replaceClass($stub, $name): string

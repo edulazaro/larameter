@@ -17,7 +17,7 @@ class StoredPlanProvider implements PlanProvider
     /**
      * The plan stored on the account, then the configured default.
      *
-     * @param  Model  $model
+     * @param Model $model
      * @return Plan|null
      */
     public function provide(Model $model): ?Plan

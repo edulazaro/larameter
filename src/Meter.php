@@ -24,17 +24,13 @@ use Illuminate\Support\Str;
  */
 abstract class Meter implements MeterContract
 {
-    /**
-     * Matches the key under `limits` in the plan. Derived from the class name if empty.
-     *
-     * @var string
-     */
+    /** @var string Matches the key under `limits` in the plan. Derived from the class name if empty. */
     public string $handle = '';
 
     /**
      * Create a new meter for a model.
      *
-     * @param  Model  $meterable
+     * @param Model $meterable
      * @return void
      */
     public function __construct(protected Model $meterable)
@@ -74,7 +70,7 @@ abstract class Meter implements MeterContract
     /**
      * Whether more may be created.
      *
-     * @param  int  $additional
+     * @param int $additional
      * @return bool
      */
     public function allows(int $additional = 1): bool

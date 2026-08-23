@@ -19,7 +19,7 @@ class CashierPlanProvider implements PlanProvider
     /**
      * The plan behind the live subscription, matched by price id.
      *
-     * @param  Model  $model
+     * @param Model $model
      * @return Plan|null
      */
     public function provide(Model $model): ?Plan
@@ -49,7 +49,7 @@ class CashierPlanProvider implements PlanProvider
     /**
      * Whether Cashier is installed and this model is billable.
      *
-     * @param  Model  $model
+     * @param Model $model
      * @return bool
      */
     protected function available(Model $model): bool

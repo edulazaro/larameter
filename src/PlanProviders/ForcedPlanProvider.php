@@ -17,7 +17,7 @@ class ForcedPlanProvider implements PlanProvider
     /**
      * The plan named by the override column, if it names a real one.
      *
-     * @param  Model  $model
+     * @param Model $model
      * @return Plan|null
      */
     public function provide(Model $model): ?Plan

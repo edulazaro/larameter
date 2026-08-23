@@ -15,39 +15,23 @@ namespace EduLazaro\Larameter;
  */
 class Plan
 {
-    /**
-     * Identifier, matching the key of your plans array.
-     *
-     * @var string
-     */
+    /** @var string Identifier, matching the key of your plans array. */
     public readonly string $handle;
 
-    /**
-     * Display name. Falls back to the handle.
-     *
-     * @var string
-     */
+    /** @var string Display name. Falls back to the handle. */
     public readonly string $name;
 
-    /**
-     * In whatever unit you wrote it. Never read or charged by the package.
-     *
-     * @var int
-     */
+    /** @var int In whatever unit you wrote it. Never read or charged by the package. */
     public readonly int $price;
 
-    /**
-     * False when there is no plan at all.
-     *
-     * @var bool
-     */
+    /** @var bool False when there is no plan at all. */
     public readonly bool $exists;
 
     /**
      * Create a plan from its definition.
      *
-     * @param  string  $handle
-     * @param  array<string, mixed>  $config
+     * @param string $handle
+     * @param array<string, mixed> $config
      * @return void
      */
     public function __construct(string $handle, protected array $config = [])
@@ -61,7 +45,7 @@ class Plan
     /**
      * Whether the plan includes a feature. Absent means no.
      *
-     * @param  string  $feature
+     * @param string $feature
      * @return bool
      */
     public function allows(string $feature): bool
@@ -72,7 +56,7 @@ class Plan
     /**
      * Allowance in one window. Zero without credits, -1 unlimited.
      *
-     * @param  string  $window
+     * @param string $window
      * @return int
      */
     public function credits(string $window): int
@@ -89,7 +73,7 @@ class Plan
     /**
      * Ceiling on a resource. Absent means unlimited.
      *
-     * @param  string  $resource
+     * @param string $resource
      * @return int
      */
     public function limit(string $resource): int
@@ -100,8 +84,8 @@ class Plan
     /**
      * Anything else kept in the plan definition.
      *
-     * @param  string  $key
-     * @param  mixed  $default
+     * @param string $key
+     * @param mixed $default
      * @return mixed
      */
     public function get(string $key, mixed $default = null): mixed

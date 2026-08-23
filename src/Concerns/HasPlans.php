@@ -18,18 +18,10 @@ use EduLazaro\Larameter\Plan;
  */
 trait HasPlans
 {
-    /**
-     * array<int, class-string<PlanProvider>>>.
-     *
-     * @var array<string,
-     */
+    /** @var array<string, array<int, class-string<PlanProvider>>>. */
     private static array $registeredPlanProviders = [];
 
-    /**
-     * Resolved once per instance.
-     *
-     * @var ?Plan
-     */
+    /** @var ?Plan Resolved once per instance. */
     private ?Plan $resolvedPlan = null;
 
     /**
@@ -91,7 +83,7 @@ trait HasPlans
     /**
      * Whether this model is on a given plan.
      *
-     * @param  string  $handle
+     * @param string $handle
      * @return bool
      */
     public function onPlan(string $handle): bool

@@ -36,11 +36,7 @@ class Account extends Model
         'purchased_credits' => 'integer',
     ];
 
-    /**
-     * Memoised: headroom is asked repeatedly and resolving may query.
-     *
-     * @var Plan|null
-     */
+    /** @var Plan|null Memoised: headroom is asked repeatedly and resolving may query. */
     private ?Plan $cachedPlan = null;
 
     /**
@@ -86,7 +82,7 @@ class Account extends Model
     /**
      * The account for a model, created on first sight.
      *
-     * @param  Model  $meterable
+     * @param Model $meterable
      * @return static
      */
     public static function for(Model $meterable): static
@@ -185,7 +181,7 @@ class Account extends Model
     /**
      * Whether there is enough left to spend.
      *
-     * @param  int  $credits
+     * @param int $credits
      * @return bool
      */
     public function hasCredits(int $credits = 1): bool
@@ -217,7 +213,7 @@ class Account extends Model
      * The two totals add to less than what was charged exactly when the account
      * overdrew, which is how an overdraft stays visible.
      *
-     * @param  int  $credits
+     * @param int $credits
      * @return array{plan: int, purchased: int}
      */
     public function apply(int $credits): array
@@ -229,11 +225,7 @@ class Account extends Model
         }
 
         return DB::transaction(function () use ($credits, $nothing) {
-            /**
-             * $locked.
-             *
-             * @var static|null
-             */
+            /** @var static|null $locked */
             $locked = static::query()->lockForUpdate()->find($this->getKey());
 
             if (! $locked) {
@@ -289,7 +281,7 @@ class Account extends Model
      * Windows are not restarted, so an upgrade raises the ceiling over what was already
      * spent rather than granting a second allowance.
      *
-     * @param  string|null  $handle
+     * @param string|null $handle
      * @return void
      */
     public function setPlan(?string $handle): void
@@ -306,7 +298,7 @@ class Account extends Model
      * nobody can upgrade for a fresh allowance and downgrade again. Rolling windows are
      * left alone, and the same instant twice does nothing.
      *
-     * @param  \DateTimeInterface|null  $at
+     * @param \DateTimeInterface|null $at
      * @return void
      */
     public function startPeriod(?\DateTimeInterface $at = null): void
@@ -337,11 +329,11 @@ class Account extends Model
     /**
      * Record credits in. The observer on Deposit moves the balance to match.
      *
-     * @param  int  $credits
-     * @param  string  $reason
-     * @param  Model|null  $source
-     * @param  string|null  $note
-     * @param  array<string, mixed>  $metadata
+     * @param int $credits
+     * @param string $reason
+     * @param Model|null $source
+     * @param string|null $note
+     * @param array<string, mixed> $metadata
      * @return Deposit
      */
     public function deposit(

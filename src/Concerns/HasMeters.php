@@ -18,25 +18,13 @@ use ReflectionClass;
  */
 trait HasMeters
 {
-    /**
-     * array<int, class-string<Meter>>> From #[MeteredBy], read once.
-     *
-     * @var array<string,
-     */
+    /** @var array<string, array<int, class-string<Meter>>> From #[MeteredBy], read once. */
     private static array $attributeMeters = [];
 
-    /**
-     * array<int, class-string<Meter>>> Registered at runtime.
-     *
-     * @var array<string,
-     */
+    /** @var array<string, array<int, class-string<Meter>>> Registered at runtime. */
     private static array $registeredMeters = [];
 
-    /**
-     * Meter> Resolved once per instance.
-     *
-     * @var array<string,
-     */
+    /** @var array<string, Meter> Resolved once per instance. */
     private array $meterInstances = [];
 
     /**
@@ -55,7 +43,7 @@ trait HasMeters
     /**
      * Add a meter from outside the class.
      *
-     * @param  class-string<Meter>  $meterClass
+     * @param class-string<Meter> $meterClass
      * @return void
      */
     public static function meter(string $meterClass): void
@@ -105,7 +93,7 @@ trait HasMeters
     /**
      * One meter by handle.
      *
-     * @param  string  $handle
+     * @param string $handle
      * @return Meter|null
      */
     public function meterFor(string $handle): ?Meter
@@ -116,8 +104,8 @@ trait HasMeters
     /**
      * Whether more of a resource may be created. Unmetered resources are unlimited.
      *
-     * @param  string  $handle
-     * @param  int  $additional
+     * @param string $handle
+     * @param int $additional
      * @return bool
      */
     public function canCreate(string $handle, int $additional = 1): bool

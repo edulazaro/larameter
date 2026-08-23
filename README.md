@@ -67,26 +67,24 @@ balance would burn the session before a word was typed.
 Declare no windows at all and you have opted out of allowance metering: usage is still
 recorded, nothing is refused, and only purchased credits mean anything.
 
-## Renewal
+## Nothing to synchronise
 
-Stripe bills by anniversary unless you tell it otherwise: subscribe on the 28th and your
-cycle runs 28th to 28th. So the grid has to be the customer's, not the calendar's.
-Anchoring credits to the 1st while charging on the 28th hands every new account an extra
-allowance, and it always falls the customer's way, so nobody ever reports it.
+A window's grid is fixed by when it started, and every reset lands one length later,
+for ever. An account whose month began on the 28th resets on the 28th, without anybody
+telling it to.
 
-Fixed windows lay their grid on first USE, which is right for an account that never pays.
-Once money is involved, line them up with the invoice:
+Which is why there is no webhook here, and nothing to call when a subscription renews.
+A billing period and a credit window are separate clocks and neither has to know about
+the other:
 
-    $org->startCreditPeriod($subscription->asStripeSubscription()->current_period_start);
+- **The window** resets on its own grid, lazily, the next time credits are charged.
+- **The plan** is worked out on every request. Stop paying and the provider stops
+  finding a subscription, so the allowance drops to whatever the next provider says.
+  Pay four days late and it comes back mid-window.
 
-Call it when they first pay and on every renewal. **Never on a plan change**: upgrade, new
-allowance, downgrade, repeat is the door this package keeps shut, and `setCreditPlan()`
-deliberately does not touch it.
-
-Two things make it hard to misuse anyway. Rolling windows are left alone, because a
-session is not a billing period and a renewal has no business handing back the five hours
-somebody just spent. And passing the same instant twice does nothing, so a webhook
-delivered twice cannot be replayed for a second allowance.
+Tying the two together would break the ordinary case, not improve it: an annual
+subscription usually grants a monthly allowance, and a window anchored to the billing
+period would reset it once a year.
 
 ## Setup
 
@@ -120,7 +118,6 @@ Done. The account row appears the first time you touch it.
     $org->meterCredits('gpt-4o', 'token', $in, $out);
     $org->creditsRemaining();
     $org->creditsResetAt();
-    $org->startCreditPeriod($renewedAt);
 
 ## Plans
 
@@ -181,10 +178,6 @@ than they translate the name of the application.
 **A `Plan` is generic.** A handle, a name, an allowance and some ceilings, and it reads the
 same whether it was resolved from a subscription, from a column of yours, or from a
 default. What a provider had to know to answer stays inside that provider.
-
-Anchoring the billing windows to an invoice is a separate matter, and an explicit one:
-
-    $org->startCreditPeriod($renewedAt);
 
 **Plans are optional.** `HasCredits` alone is an app that sells bundles: no plan, no
 allowance, everything from what was purchased.

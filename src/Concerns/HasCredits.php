@@ -178,20 +178,6 @@ trait HasCredits
     }
 
     /**
-     * Line the fixed billing windows up with a period that has just started.
-     *
-     * Call it on first payment and on renewal. Never on a plan change: upgrade, new
-     * allowance, downgrade, repeat is the door this keeps shut.
-     *
-     * @param \DateTimeInterface|null $at
-     * @return void
-     */
-    public function startCreditPeriod(?\DateTimeInterface $at = null): void
-    {
-        $this->creditAccount()->startPeriod($at);
-    }
-
-    /**
      * Credits in: a purchase, a gift, a refund, a correction. Negative is allowed.
      *
      * @param int $credits

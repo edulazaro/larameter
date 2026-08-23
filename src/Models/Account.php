@@ -292,41 +292,6 @@ class Account extends Model
     }
 
     /**
-     * Line the fixed windows up with a period that has just started.
-     *
-     * On first payment and on renewal, never on a plan change: that door stays shut so
-     * nobody can upgrade for a fresh allowance and downgrade again. Rolling windows are
-     * left alone, and the same instant twice does nothing.
-     *
-     * @param \DateTimeInterface|null $at
-     * @return void
-     */
-    public function startPeriod(?\DateTimeInterface $at = null): void
-    {
-        $at = $at ? Carbon::instance($at) : now();
-
-        foreach (array_keys(Window::declared()) as $key) {
-            if (Window::anchorOf($key) !== 'fixed') {
-                continue;
-            }
-
-            $window = $this->windows()->firstOrNew(['key' => $key]);
-
-            if ($window->exists && $window->started_at->equalTo($at)) {
-                continue;
-            }
-
-            $window->forceFill([
-                'account_id' => $this->getKey(),
-                'started_at' => $at,
-                'credits_used' => 0,
-            ])->save();
-        }
-
-        $this->unsetRelation('windows');
-    }
-
-    /**
      * Record credits in. The observer on Deposit moves the balance to match.
      *
      * @param int $credits

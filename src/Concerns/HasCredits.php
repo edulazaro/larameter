@@ -79,6 +79,32 @@ trait HasCredits
     }
 
     /**
+     * Whether there is enough left for what an action costs.
+     *
+     * The price is looked up rather than passed in, because charging does not refuse:
+     * an account with nothing left records the overdraft. If asking first is awkward,
+     * nobody asks.
+     *
+     * @param string $operation
+     * @return bool
+     */
+    public function hasCreditsFor(string $operation): bool
+    {
+        return $this->hasCredits($this->creditPrice($operation));
+    }
+
+    /**
+     * What a fixed-price action costs. Unpriced actions are free.
+     *
+     * @param string $operation
+     * @return int
+     */
+    public function creditPrice(string $operation): int
+    {
+        return $this->usageTracker()->priceOf($operation);
+    }
+
+    /**
      * Allowance left in the tightest window, plus anything purchased.
      *
      * @return int

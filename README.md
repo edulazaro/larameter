@@ -299,6 +299,8 @@ hand out credits that never reach the balance.
 ## Asking
 
     $org->hasCredits()              may it spend?
+    $org->hasCreditsFor('email')    enough for what that action costs?
+    $org->creditPrice('email')      what it costs
     $org->creditsRemaining()        headroom plus what was bought
     $org->creditHeadroom()          the plan only, tightest window
     $org->creditAllowanceIn('week') what the plan grants there

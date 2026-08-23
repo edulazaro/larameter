@@ -74,4 +74,36 @@ class HasCreditsTest extends TestCase
 
         $this->assertSame(1_010, $org->creditsRemaining());
     }
+
+    public function test_it_answers_what_an_action_costs_without_being_told(): void
+    {
+        config()->set('larameter.prices', ['search_legislation' => 10]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 25]]);
+        config()->set('larameter.default_plan', 'free');
+
+        $org = Organization::create(['name' => 'Acme']);
+
+        $this->assertSame(10, $org->creditPrice('search_legislation'));
+        $this->assertTrue($org->hasCreditsFor('search_legislation'));
+
+        $org->chargeCredits('search_legislation');
+        $org->chargeCredits('search_legislation');
+
+        // Five left, and the search costs ten.
+        $this->assertSame(5, $org->fresh()->creditsRemaining());
+        $this->assertFalse($org->fresh()->hasCreditsFor('search_legislation'));
+        $this->assertTrue($org->fresh()->hasCredits(), 'still has credit, just not enough');
+    }
+
+    public function test_an_unpriced_action_is_always_affordable(): void
+    {
+        config()->set('larameter.prices', []);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 0]]);
+        config()->set('larameter.default_plan', 'free');
+
+        $org = Organization::create(['name' => 'Acme']);
+
+        $this->assertFalse($org->hasCredits());
+        $this->assertTrue($org->hasCreditsFor('something_free'));
+    }
 }

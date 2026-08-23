@@ -33,6 +33,16 @@ abstract class TestCase extends Orchestra
             $table->string('name')->nullable();
             $table->timestamps();
         });
+
+        // What the meters count. Ordinary tables of the host app; the package only ever
+        // asks a meter, and the meter knows how to count its own.
+        foreach (['members', 'matters'] as $table) {
+            Schema::create($table, function ($blueprint) {
+                $blueprint->id();
+                $blueprint->foreignId('organization_id');
+                $blueprint->timestamps();
+            });
+        }
     }
 
     protected function tearDown(): void

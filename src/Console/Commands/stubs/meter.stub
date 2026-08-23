@@ -1,0 +1,30 @@
+<?php
+
+namespace {{ namespace }};
+
+use EduLazaro\Larameter\Meter;
+
+class {{meter_class}} extends Meter
+{
+    /**
+     * Matches the key under `limits` in your plans:
+     *
+     *     'pro' => ['limits' => ['{{meter_key}}' => 25]],
+     */
+    protected string $key = '{{meter_key}}';
+
+    /** @var \{{model_class}} $meterable */
+    public function count(): int
+    {
+        return $this->meterable->{{meter_key}}()->count();
+    }
+
+    /**
+     * Optional: without it the label is derived from the key.
+     *
+     *     public function label(): string
+     *     {
+     *         return text('meters.{{meter_key}}', '{{meter_label}}');
+     *     }
+     */
+}

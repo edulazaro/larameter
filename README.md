@@ -121,7 +121,6 @@ Done. The account row appears the first time you touch it.
     $org->creditsRemaining();
     $org->creditsResetAt();
     $org->startCreditPeriod($renewedAt);
-    $org->canCreate('seats', $current);
 
 ## Plans
 
@@ -148,6 +147,52 @@ Three defaults that read in different directions, on purpose:
   Saying `'week' => 2000` and nothing else means limited weekly, session free.
 - a `limits` key you never listed is **unlimited**. These are restrictions, and a package
   you just installed should not refuse to create users on its own opinion.
+
+## Ceilings
+
+Credits are spent and come back. Seats and projects are different: a standing count of
+what exists, and the plan says how many at once. Those are meters.
+
+    php artisan make:meter MemberMeter Organization
+
+    namespace App\Meters\Organization;
+
+    class MemberMeter extends Meter
+    {
+        protected string $key = 'members';
+
+        public function count(): int
+        {
+            return $this->meterable->members()->count();
+        }
+    }
+
+Declare it on the model, either way:
+
+    #[MeteredBy(MemberMeter::class)]
+    class Organization extends Model
+    {
+        use HasCredits, HasMeters;
+    }
+
+    // or, from a service provider
+    Organization::meter(MemberMeter::class);
+
+Then nothing has to remember how to count:
+
+    $org->canCreate('members');
+    $org->usageSummary();
+
+**A meter is a class and not a number you pass in**, and that is the whole point. The app
+this came from had a one-seat plan, showed it on the usage screen, and never checked it
+when inviting: the cap was enforced for cases and forgotten for members, because enforcing
+it meant every caller had to remember to count first.
+
+`label()` is optional and derives from the key. Override it to translate; the package
+never sees the string and depends on no translation package.
+
+A resource with no meter is **unlimited**. The other way round, a package you just
+installed would start refusing to create things it was never told to count.
 
 ## Credits in
 
@@ -194,7 +239,7 @@ hand out credits that never reach the balance.
     $org->creditsResetAt()          when they can spend again, or null
     $org->creditPlan()              the plan key, or null
 
-`CreditMeter::hasCreditsMemoized()` answers once per instance, for hot paths that ask
+`UsageTracker::hasCreditsMemoized()` answers once per instance, for hot paths that ask
 repeatedly. It does not notice spending that happens afterwards, deliberately: a turn that
 starts with credit finishes, and the overshoot is bounded to one turn. The binding is
 `scoped`, not a singleton, so a queue worker does not keep one turn's answer alive across

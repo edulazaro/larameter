@@ -7,7 +7,7 @@ use EduLazaro\Larameter\Models\UsageRecord;
 /**
  * Keeps the balance in step with the rows.
  *
- * An observer rather than a line inside CreditMeter, so that a usage row written by
+ * An observer rather than a line inside UsageTracker, so that a usage row written by
  * anything at all still moves the balance: a backfill, a console command, an app pricing
  * something the package never hears about.
  */

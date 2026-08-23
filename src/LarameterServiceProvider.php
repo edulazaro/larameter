@@ -2,6 +2,7 @@
 
 namespace EduLazaro\Larameter;
 
+use EduLazaro\Larameter\Console\Commands\MakeMeterCommand;
 use EduLazaro\Larameter\Models\Deposit;
 use EduLazaro\Larameter\Models\UsageRecord;
 use EduLazaro\Larameter\Observers\DepositObserver;
@@ -19,12 +20,16 @@ class LarameterServiceProvider extends ServiceProvider
         // spending for as long as that worker lived. Scoped bindings are flushed between
         // jobs and between Octane requests, which is exactly the lifetime the memo is
         // meant to have.
-        $this->app->scoped(CreditMeter::class);
+        $this->app->scoped(UsageTracker::class);
     }
 
     public function boot(): void
     {
-        // Every row moves the balance, whoever wrote it. Keeping this out of CreditMeter
+        if ($this->app->runningInConsole()) {
+            $this->commands([MakeMeterCommand::class]);
+        }
+
+        // Every row moves the balance, whoever wrote it. Keeping this out of UsageTracker
         // means a backfill or a console command cannot record consumption nobody is
         // charged for, nor hand out credits that never reach the balance.
         UsageRecord::observe(UsageRecordObserver::class);

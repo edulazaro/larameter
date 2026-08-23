@@ -2,7 +2,7 @@
 
 namespace EduLazaro\Larameter\Concerns;
 
-use EduLazaro\Larameter\CreditMeter;
+use EduLazaro\Larameter\UsageTracker;
 use EduLazaro\Larameter\Models\Account;
 use EduLazaro\Larameter\Models\Deposit;
 use EduLazaro\Larameter\Models\UsageRecord;
@@ -57,25 +57,25 @@ trait HasCredits
 
     public function hasCredits(int $credits = 1): bool
     {
-        return $this->meter()->hasCredits($this, $credits);
+        return $this->usageTracker()->hasCredits($this, $credits);
     }
 
     /** Plan allowance left in the tightest window, plus anything bought on top. */
     public function creditsRemaining(): int
     {
-        return $this->meter()->remaining($this);
+        return $this->usageTracker()->remaining($this);
     }
 
     /** The same, without counting purchased credits. */
     public function creditHeadroom(): int
     {
-        return $this->meter()->headroom($this);
+        return $this->usageTracker()->headroom($this);
     }
 
     /** What the plan grants in one window, before anything is spent of it. */
     public function creditAllowanceIn(string $window): int
     {
-        return $this->meter()->allowanceIn($this, $window);
+        return $this->usageTracker()->allowanceIn($this, $window);
     }
 
     /** When they can spend again, or null if nothing is blocking them right now. */
@@ -92,7 +92,7 @@ trait HasCredits
         ?Model $subject = null,
         ?int $credits = null,
     ): UsageRecord {
-        return $this->meter()->charge($this, $operation, $actor, $subject, $credits);
+        return $this->usageTracker()->charge($this, $operation, $actor, $subject, $credits);
     }
 
     public function meterCredits(
@@ -103,7 +103,7 @@ trait HasCredits
         ?Model $actor = null,
         ?Model $subject = null,
     ): UsageRecord {
-        return $this->meter()->meter($this, $operation, $unit, $quantityIn, $quantityOut, $actor, $subject);
+        return $this->usageTracker()->meter($this, $operation, $unit, $quantityIn, $quantityOut, $actor, $subject);
     }
 
     // ─── Plan and top-ups ───────────────────────────────────────────
@@ -160,15 +160,12 @@ trait HasCredits
     }
 
     // ─── Ceilings ───────────────────────────────────────────────────
+    //
+    // Ceilings live in HasMeters, which counts them for you. Add that trait alongside
+    // this one and declare a meter per resource.
 
-    /** How many more of a resource this may create. Ceilings, not spend. */
-    public function canCreate(string $resource, int $current): bool
+    protected function usageTracker(): UsageTracker
     {
-        return $this->meter()->canCreate($this, $resource, $current);
-    }
-
-    protected function meter(): CreditMeter
-    {
-        return app(CreditMeter::class);
+        return app(UsageTracker::class);
     }
 }

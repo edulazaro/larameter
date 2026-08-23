@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * Most apps never touch this class. Put the HasCredits trait on whatever you bill and
  * call the methods it gives you.
  */
-class CreditMeter
+class UsageTracker
 {
     /**
      * Memo of hasCreditsMemoized(), for as long as this instance lives.

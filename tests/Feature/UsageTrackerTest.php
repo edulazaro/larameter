@@ -2,17 +2,17 @@
 
 namespace EduLazaro\Larameter\Tests\Feature;
 
-use EduLazaro\Larameter\CreditMeter;
+use EduLazaro\Larameter\UsageTracker;
 use EduLazaro\Larameter\Tests\Fixtures\Organization;
 use EduLazaro\Larameter\Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 /** Pricing: turning an action or a pile of tokens into a number of credits. */
-class CreditMeterTest extends TestCase
+class UsageTrackerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private CreditMeter $meter;
+    private UsageTracker $meter;
 
     protected function setUp(): void
     {
@@ -22,7 +22,7 @@ class CreditMeterTest extends TestCase
         config()->set('larameter.plans', ['free' => ['credits' => ['week' => 1_000_000]]]);
         config()->set('larameter.default_plan', 'free');
 
-        $this->meter = app(CreditMeter::class);
+        $this->meter = app(UsageTracker::class);
     }
 
     private function org(): Organization

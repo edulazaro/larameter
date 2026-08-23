@@ -34,7 +34,7 @@ class EagerLoadingTest extends TestCase
         }
 
         // The with() the caller wrote has to actually do something. It did not until
-        // CreditMeter stopped going straight to Account::for() and ignoring it.
+        // UsageTracker stopped going straight to Account::for() and ignoring it.
         $this->assertSame([], DB::getQueryLog());
     }
 }

@@ -53,6 +53,27 @@ balance would burn the session before a word was typed.
 Declare no windows at all and you have opted out of allowance metering: usage is still
 recorded, nothing is refused, and only purchased credits mean anything.
 
+## Renewal
+
+Stripe bills by anniversary unless you tell it otherwise: subscribe on the 28th and your
+cycle runs 28th to 28th. So the grid has to be the customer's, not the calendar's.
+Anchoring credits to the 1st while charging on the 28th hands every new account an extra
+allowance, and it always falls the customer's way, so nobody ever reports it.
+
+Fixed windows lay their grid on first USE, which is right for an account that never pays.
+Once money is involved, line them up with the invoice:
+
+    $org->startCreditPeriod($subscription->asStripeSubscription()->current_period_start);
+
+Call it when they first pay and on every renewal. **Never on a plan change**: upgrade, new
+allowance, downgrade, repeat is the door this package keeps shut, and `setCreditPlan()`
+deliberately does not touch it.
+
+Two things make it hard to misuse anyway. Rolling windows are left alone, because a
+session is not a billing period and a renewal has no business handing back the five hours
+somebody just spent. And passing the same instant twice does nothing, so a webhook
+delivered twice cannot be replayed for a second allowance.
+
 ## Setup
 
 Three steps. No interface to implement, nothing to bind, no column on your table.
@@ -85,6 +106,7 @@ Done. The account row appears the first time you touch it.
     $org->meterCredits('gpt-4o', 'token', $in, $out);
     $org->creditsRemaining();
     $org->creditsResetAt();
+    $org->startCreditPeriod($renewedAt);
     $org->canCreate('seats', $current);
 
 ## Plans

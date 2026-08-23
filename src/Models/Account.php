@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -248,6 +249,51 @@ class Account extends Model
     {
         $this->plan_key = $key;
         $this->save();
+    }
+
+    /**
+     * Line the billing windows up with a period that has just started.
+     *
+     * Call it when they first pay and on every renewal, passing the timestamp Stripe
+     * gives you. Without it the grid is laid down on first USE, so somebody who tried
+     * the app on Tuesday and paid on Thursday gets a fresh allowance five days after
+     * paying, every month.
+     *
+     * NEVER call it on a plan change. That is the door this package keeps shut on
+     * purpose: upgrade, get a new allowance, downgrade, repeat. setPlan() does not touch
+     * it, and neither should you.
+     *
+     * Two things keep it from being abused anyway:
+     *
+     *   - rolling windows are left alone. A session is not a billing period, and a
+     *     renewal has no business handing somebody back the five hours they just spent.
+     *   - passing the same instant twice does nothing. Since the instant comes from
+     *     Stripe and Stripe gives you one per period, it cannot be replayed for a
+     *     second allowance.
+     */
+    public function startPeriod(?\DateTimeInterface $at = null): void
+    {
+        $at = $at ? Carbon::instance($at) : now();
+
+        foreach (array_keys(Window::declared()) as $key) {
+            if (Window::anchorOf($key) !== 'fixed') {
+                continue;
+            }
+
+            $window = $this->windows()->firstOrNew(['key' => $key]);
+
+            if ($window->exists && $window->started_at->equalTo($at)) {
+                continue;
+            }
+
+            $window->forceFill([
+                'account_id' => $this->getKey(),
+                'started_at' => $at,
+                'credits_used' => 0,
+            ])->save();
+        }
+
+        $this->unsetRelation('windows');
     }
 
     /** Credits in. The observer on Deposit moves purchased_credits to match. */

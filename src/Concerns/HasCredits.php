@@ -127,6 +127,23 @@ trait HasCredits
     }
 
     /**
+     * Line the billing windows up with a period that has just started.
+     *
+     * Call it when they first pay and on every renewal:
+     *
+     *     $org->startCreditPeriod($subscription->asStripeSubscription()->current_period_start);
+     *
+     * NEVER on a plan change. Upgrade, new allowance, downgrade, repeat is exactly the
+     * door this keeps shut, and setCreditPlan() deliberately does not touch it.
+     *
+     * Rolling windows are left alone, and the same instant twice does nothing.
+     */
+    public function startCreditPeriod(?\DateTimeInterface $at = null): void
+    {
+        $this->creditAccount()->startPeriod($at);
+    }
+
+    /**
      * Credits in: a purchase, a gift, a refund, a correction. Negative is allowed and is
      * how an adjustment downwards is written.
      *

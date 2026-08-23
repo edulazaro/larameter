@@ -127,4 +127,16 @@ class UsageTrackerTest extends TestCase
         $this->assertTrue($this->meter->hasCreditsMemoized($org));
         $this->assertFalse($this->meter->hasCredits($org));
     }
+
+    public function test_a_metered_call_can_be_priced_without_being_charged(): void
+    {
+        config()->set('larameter.rates', ['gpt-4o' => ['input' => 25_000, 'output' => 100_000]]);
+
+        $org = $this->org();
+
+        // Same arithmetic charging would do, but nothing is written: a caller that has
+        // to show or store what a call cost should not have to recompute the table.
+        $this->assertSame(125_000, $org->credits()->meterPrice('gpt-4o', 1_000_000, 1_000_000));
+        $this->assertSame(0, $org->credits()->records()->count());
+    }
 }

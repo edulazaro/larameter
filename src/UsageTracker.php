@@ -98,6 +98,25 @@ class UsageTracker
     }
 
     /**
+     * What a metered quantity would cost, without charging it.
+     *
+     * The sibling of priceOf(): one prices an action, this prices a consumption. Needed
+     * wherever a caller has to show or store the cost of a call the client already
+     * charged, without recomputing the rate table by hand.
+     *
+     * @param string $operation
+     * @param int $quantityIn
+     * @param int $quantityOut
+     * @return int
+     */
+    public function meteredPriceOf(string $operation, int $quantityIn, int $quantityOut = 0): int
+    {
+        $rates = config('larameter.rates') ?? [];
+
+        return $this->creditsFor($rates[$operation] ?? $rates['*'] ?? null, $quantityIn, $quantityOut);
+    }
+
+    /**
      * What a fixed action costs. Unpriced actions are free rather than guessed at.
      *
      * @param string $operation

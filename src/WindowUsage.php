@@ -20,6 +20,7 @@ class WindowUsage
      * @param string $key
      * @param int $allowance
      * @param int $used
+     * @param Carbon|null $startedAt
      * @param Carbon|null $endsAt
      * @return void
      */
@@ -27,8 +28,22 @@ class WindowUsage
         public readonly string $key,
         private readonly int $allowance,
         private readonly int $used,
+        private readonly ?Carbon $startedAt,
         private readonly ?Carbon $endsAt,
     ) {
+    }
+
+    /**
+     * When the window running now began.
+     *
+     * Null when none is running. What to count from, for anything that breaks the
+     * window down further: per person, per operation, per case.
+     *
+     * @return Carbon|null
+     */
+    public function startedAt(): ?Carbon
+    {
+        return $this->startedAt;
     }
 
     /**
@@ -104,7 +119,7 @@ class WindowUsage
     /**
      * The window as a row for a usage screen.
      *
-     * @return array{key: string, allowance: int, used: int, remaining: int, ends_at: Carbon|null}
+     * @return array{key: string, allowance: int, used: int, remaining: int, started_at: Carbon|null, ends_at: Carbon|null}
      */
     public function toArray(): array
     {
@@ -113,6 +128,7 @@ class WindowUsage
             'allowance' => $this->allowance,
             'used' => $this->used,
             'remaining' => $this->remaining(),
+            'started_at' => $this->startedAt,
             'ends_at' => $this->endsAt,
         ];
     }

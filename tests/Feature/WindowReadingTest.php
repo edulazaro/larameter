@@ -90,6 +90,27 @@ class WindowReadingTest extends TestCase
         $this->assertSame(0, $weekly->used(), 'the old week is over, not carried forward');
         $this->assertTrue($weekly->endsAt()->isFuture(), 'and it ends on the grid, not in the past');
         $this->assertSame('2026-02-02 10:00:00', $weekly->endsAt()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-01-26 10:00:00', $weekly->startedAt()->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_window_says_what_to_count_from(): void
+    {
+        Carbon::setTestNow('2026-01-05 10:00:00');
+
+        $org = $this->org(withSession: false);
+        $org->credits()->charge('thing', credits: 100);
+
+        $weekly = $org->fresh()->credits()->in('weekly');
+
+        // Anything breaking a window down further (per person, per operation) has to
+        // count from here, or the parts will not add up to the bar above them.
+        $this->assertSame('2026-01-05 10:00:00', $weekly->startedAt()->format('Y-m-d H:i:s'));
+        // A charge opens every declared window at once, so the monthly one started
+        // with it. That is the point of a charge coming off all of them.
+        $this->assertSame(
+            '2026-01-05 10:00:00',
+            $org->credits()->in('monthly')->startedAt()->format('Y-m-d H:i:s'),
+        );
     }
 
     public function test_an_expired_rolling_window_has_no_end_until_it_is_used_again(): void

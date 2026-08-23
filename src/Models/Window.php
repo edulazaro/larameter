@@ -177,6 +177,20 @@ class Window extends Model
     }
 
     /**
+     * When the window running now began, or null when none is.
+     *
+     * @return Carbon|null
+     */
+    public function currentStartedAt(): ?Carbon
+    {
+        if (! $this->isExpired()) {
+            return $this->started_at;
+        }
+
+        return static::anchorOf($this->key) === 'rolling' ? null : $this->currentStart();
+    }
+
+    /**
      * The start of the slot on the grid that contains now.
      *
      * @return Carbon

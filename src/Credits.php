@@ -86,6 +86,19 @@ class Credits
     }
 
     /**
+     * What a metered quantity would cost, without charging it.
+     *
+     * @param string $operation
+     * @param int $quantityIn
+     * @param int $quantityOut
+     * @return int
+     */
+    public function meterPrice(string $operation, int $quantityIn, int $quantityOut = 0): int
+    {
+        return $this->tracker()->meteredPriceOf($operation, $quantityIn, $quantityOut);
+    }
+
+    /**
      * Allowance left in the tightest window, plus anything purchased.
      *
      * @return int
@@ -161,6 +174,7 @@ class Credits
                 $key,
                 $plan->creditsIn($key),
                 $row?->currentUsage() ?? 0,
+                $row?->currentStartedAt(),
                 $row?->currentEndsAt(),
             );
         }

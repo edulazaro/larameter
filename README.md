@@ -237,7 +237,7 @@ Doing both with the same meter does not double it.
 
 Then nothing has to remember how to count:
 
-    $org->canCreate('members');
+    $org->fits('members');
     $org->usageSummary();
 
 **A meter is a class and not a number you pass in**, and that is the whole point. The app

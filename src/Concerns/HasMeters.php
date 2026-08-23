@@ -70,7 +70,7 @@ trait HasMeters
      *
      * @return array<string, Meter>
      */
-    public function meters(): array
+    public function getMeters(): array
     {
         if ($this->meterInstances !== []) {
             return $this->meterInstances;
@@ -96,21 +96,21 @@ trait HasMeters
      * @param string $handle
      * @return Meter|null
      */
-    public function meterFor(string $handle): ?Meter
+    public function getMeter(string $handle): ?Meter
     {
-        return $this->meters()[$handle] ?? null;
+        return $this->getMeters()[$handle] ?? null;
     }
 
     /**
-     * Whether more of a resource may be created. Unmetered resources are unlimited.
+     * Whether there is room for more of a resource. Unmetered resources are unlimited.
      *
      * @param string $handle
      * @param int $additional
      * @return bool
      */
-    public function canCreate(string $handle, int $additional = 1): bool
+    public function fits(string $handle, int $additional = 1): bool
     {
-        return $this->meterFor($handle)?->allows($additional) ?? true;
+        return $this->getMeter($handle)?->fits($additional) ?? true;
     }
 
     /**
@@ -120,6 +120,6 @@ trait HasMeters
      */
     public function usageSummary(): array
     {
-        return array_map(fn (Meter $meter) => $meter->toArray(), array_values($this->meters()));
+        return array_map(fn (Meter $meter) => $meter->toArray(), array_values($this->getMeters()));
     }
 }

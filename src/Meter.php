@@ -68,12 +68,12 @@ abstract class Meter implements MeterContract
     }
 
     /**
-     * Whether more may be created.
+     * Whether the plan has room for more.
      *
      * @param int $additional
      * @return bool
      */
-    public function allows(int $additional = 1): bool
+    public function fits(int $additional = 1): bool
     {
         $limit = $this->limit();
 

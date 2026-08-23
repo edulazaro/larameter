@@ -2,6 +2,7 @@
 
 namespace EduLazaro\Larameter\Tests\Feature;
 
+use EduLazaro\Larameter\Tests\Fixtures\BilledOrganization;
 use EduLazaro\Larameter\Tests\Fixtures\CaseMeter;
 use EduLazaro\Larameter\Tests\Fixtures\Matter;
 use EduLazaro\Larameter\Tests\Fixtures\Member;
@@ -45,8 +46,8 @@ class MeterTest extends TestCase
     {
         $org = $this->org();
 
-        $this->assertInstanceOf(MemberMeter::class, $org->meterFor('members'));
-        $this->assertInstanceOf(CaseMeter::class, $org->meterFor('cases'));
+        $this->assertInstanceOf(MemberMeter::class, $org->getMeter('members'));
+        $this->assertInstanceOf(CaseMeter::class, $org->getMeter('cases'));
     }
 
     public function test_it_counts_without_anybody_passing_a_number(): void
@@ -55,28 +56,28 @@ class MeterTest extends TestCase
         Member::create(['organization_id' => $org->id]);
         Member::create(['organization_id' => $org->id]);
 
-        $this->assertSame(2, $org->meterFor('members')->count());
+        $this->assertSame(2, $org->getMeter('members')->count());
     }
 
     public function test_the_cap_holds(): void
     {
         $org = $this->org(['members' => 2]);
 
-        $this->assertTrue($org->canCreate('members'));
+        $this->assertTrue($org->fits('members'));
 
         Member::create(['organization_id' => $org->id]);
         Member::create(['organization_id' => $org->id]);
 
-        $this->assertFalse($org->fresh()->canCreate('members'));
+        $this->assertFalse($org->fresh()->fits('members'));
     }
 
     public function test_minus_one_is_unlimited_and_zero_is_none(): void
     {
         $unlimited = $this->org(['members' => -1]);
-        $this->assertTrue($unlimited->canCreate('members'));
+        $this->assertTrue($unlimited->fits('members'));
 
         $none = $this->org(['members' => 0]);
-        $this->assertFalse($none->canCreate('members'));
+        $this->assertFalse($none->fits('members'));
     }
 
     public function test_asking_for_several_at_once_is_answered_for_several(): void
@@ -84,15 +85,15 @@ class MeterTest extends TestCase
         $org = $this->org(['members' => 3]);
         Member::create(['organization_id' => $org->id]);
 
-        $this->assertTrue($org->canCreate('members', 2));
-        $this->assertFalse($org->canCreate('members', 3));
+        $this->assertTrue($org->fits('members', 2));
+        $this->assertFalse($org->fits('members', 3));
     }
 
     public function test_a_resource_with_no_meter_is_unlimited(): void
     {
         // The other way round, a package you just installed would start refusing to
         // create things it was never told to count.
-        $this->assertTrue($this->org()->canCreate('projects'));
+        $this->assertTrue($this->org()->fits('projects'));
     }
 
     public function test_the_class_name_says_the_handle_when_you_do_not(): void
@@ -112,9 +113,9 @@ class MeterTest extends TestCase
     {
         $org = $this->org();
 
-        $this->assertSame('Members', $org->meterFor('members')->label());
-        $this->assertSame('members', $org->meterFor('members')->handle);
-        $this->assertSame('Expedientes', $org->meterFor('cases')->label());
+        $this->assertSame('Members', $org->getMeter('members')->label());
+        $this->assertSame('members', $org->getMeter('members')->handle);
+        $this->assertSame('Expedientes', $org->getMeter('cases')->label());
     }
 
     public function test_the_usage_screen_builds_itself(): void
@@ -136,7 +137,7 @@ class MeterTest extends TestCase
         // it, or the usage screen shows every resource as many times as it was mentioned.
         Organization::meter(MemberMeter::class);
 
-        $this->assertCount(2, $this->org()->meters());
+        $this->assertCount(2, $this->org()->getMeters());
     }
 
     public function test_the_attribute_declares_the_same_as_the_property(): void
@@ -146,8 +147,8 @@ class MeterTest extends TestCase
 
         $workspace = Workspace::create(['name' => 'Acme']);
 
-        $this->assertInstanceOf(MemberMeter::class, $workspace->meterFor('members'));
-        $this->assertTrue($workspace->canCreate('members'));
+        $this->assertInstanceOf(MemberMeter::class, $workspace->getMeter('members'));
+        $this->assertTrue($workspace->fits('members'));
     }
 
     public function test_all_three_ways_combine_without_doubling(): void
@@ -155,7 +156,7 @@ class MeterTest extends TestCase
         Organization::meter(ProjectMeter::class);
         Organization::meter(MemberMeter::class);
 
-        $keys = array_keys($this->org()->meters());
+        $keys = array_keys($this->org()->getMeters());
 
         sort($keys);
         $this->assertSame(['cases', 'members', 'projects'], $keys);
@@ -165,9 +166,24 @@ class MeterTest extends TestCase
     {
         Organization::meter(ProjectMeter::class);
 
-        $keys = array_keys($this->org()->meters());
+        $keys = array_keys($this->org()->getMeters());
 
         $this->assertContains('members', $keys, 'declared on the model');
         $this->assertContains('projects', $keys, 'added from outside');
+    }
+
+    public function test_the_trait_sits_beside_cashiers_billable(): void
+    {
+        // Cashier's Billable brings a meters() of its own, for Stripe's billing meters.
+        // Two traits claiming one name is a fatal error at class load, which no host app
+        // can work around without insteadof, so this trait keeps its hands off the word.
+        config()->set('larameter.plans', ['free' => ['limits' => ['members' => 5]]]);
+        config()->set('larameter.default_plan', 'free');
+
+        $org = BilledOrganization::create(['name' => 'Acme']);
+
+        $this->assertSame(['stripe'], $org->meters()->all(), 'Cashier keeps its meters()');
+        $this->assertArrayHasKey('members', $org->getMeters(), 'and the package has its own');
+        $this->assertTrue($org->fits('members'));
     }
 }

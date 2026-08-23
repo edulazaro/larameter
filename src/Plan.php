@@ -73,7 +73,9 @@ class Plan
     {
         $key = (string) config('larameter.credits_key', 'credits_monthly');
 
-        return (int) ($this->config[$key] ?? 0);
+        // Through data_get, so credits_key can name a nested one. Real plan files put
+        // the figure wherever they already had it, which is the point of plans_from.
+        return (int) data_get($this->config, $key, 0);
     }
 
     /**

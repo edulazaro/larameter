@@ -157,4 +157,23 @@ class PlanResolutionTest extends TestCase
         // rather than assuming Cashier is installed.
         $this->assertSame('free', Organization::create(['name' => 'Acme'])->plan()->handle);
     }
+
+    public function test_the_allowance_can_live_wherever_your_plans_already_kept_it(): void
+    {
+        // plans_from points at a file the app already had, so the figure is wherever
+        // that file put it. Here, inside limits, which is where a plans file that grew
+        // up around members and seats tends to keep it.
+        config()->set('larameter.credits_key', 'limits.credits_monthly');
+        config()->set('larameter.windows', ['monthly' => ['months' => 1, 'anchor' => 'fixed', 'share' => 1]]);
+        config()->set('larameter.plans', [
+            'pro' => ['name' => 'Pro', 'limits' => ['credits_monthly' => 50_000, 'members' => 5]],
+        ]);
+        config()->set('larameter.default_plan', 'pro');
+
+        $org = Organization::create(['name' => 'Acme']);
+
+        $this->assertSame(50_000, $org->plan()->credits());
+        $this->assertSame(50_000, $org->credits()->allowanceIn('monthly'));
+        $this->assertSame(5, $org->plan()->limit('members'));
+    }
 }

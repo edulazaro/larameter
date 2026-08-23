@@ -92,6 +92,10 @@ return [
 
     'plans_from' => 'larameter.plans',
 
+    // Where a plan keeps its one allowance figure. May name a nested key, for a plans
+    // file that already had it somewhere: 'limits.credits_monthly'.
+    'credits_key' => 'credits_monthly',
+
     /*
     |--------------------------------------------------------------------------
     | Where a plan comes from

@@ -1,9 +1,19 @@
 {
     "name": "edulazaro/larameter",
-    "description": "Credit metering and plan limits for Laravel: charge per action or per token, cap by month and week, and stop a call before it spends what an account no longer has. Nothing to do with AI in particular.",
+    "description": "Credits, plans and quotas for Laravel: sell an allowance per window and top-ups on the side, cap how many seats or projects a plan allows, work out which plan an account is on, and stop a call before it spends what is no longer there. Nothing to do with AI in particular.",
     "license": "MIT",
     "type": "library",
-    "keywords": ["laravel", "credits", "usage", "metering", "quota", "billing", "plans"],
+    "keywords": [
+        "laravel",
+        "credits",
+        "usage",
+        "metering",
+        "quota",
+        "billing",
+        "plans",
+        "limits",
+        "subscriptions"
+    ],
     "require": {
         "php": ">=8.2",
         "laravel/framework": ">=12.0"

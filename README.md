@@ -289,7 +289,7 @@ hand out credits that never reach the balance.
     $org->creditHeadroom()          the plan only, tightest window
     $org->creditAllowanceIn('week') what the plan grants there
     $org->creditsResetAt()          when they can spend again, or null
-    $org->creditPlan()              the plan key, or null
+    $org->plan()->key()             the plan key, or '' when there is none
 
 `UsageTracker::hasCreditsMemoized()` answers once per instance, for hot paths that ask
 repeatedly. It does not notice spending that happens afterwards, deliberately: a turn that

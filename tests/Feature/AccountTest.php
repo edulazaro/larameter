@@ -21,11 +21,11 @@ class AccountTest extends TestCase
         parent::setUp();
 
         config()->set('larameter.windows', [
-            'session' => ['minutes' => 300, 'anchor' => 'rolling'],
-            'week' => ['days' => 7, 'anchor' => 'fixed'],
+            'session' => ['minutes' => 300, 'anchor' => 'rolling', 'share' => 0.25],
+            'week' => ['days' => 7, 'anchor' => 'fixed', 'share' => 1],
         ]);
         config()->set('larameter.plans', [
-            'free' => ['credits' => ['session' => 50, 'week' => 200]],
+            'free' => ['credits_monthly' => 200],
         ]);
         config()->set('larameter.default_plan', 'free');
     }
@@ -98,16 +98,21 @@ class AccountTest extends TestCase
         $this->assertSame(700, $account->purchased_credits);
     }
 
-    public function test_a_window_missing_from_a_plans_credits_does_not_constrain_it(): void
+    public function test_a_window_with_no_share_does_not_narrow_the_allowance(): void
     {
+        config()->set('larameter.windows', [
+            'session' => ['minutes' => 300, 'anchor' => 'rolling'],
+            'week' => ['days' => 7, 'anchor' => 'fixed', 'share' => 1],
+        ]);
         config()->set('larameter.plans', [
-            'weekly_only' => ['credits' => ['week' => 2_000]],
+            'weekly_only' => ['credits_monthly' => 2_000],
         ]);
         config()->set('larameter.default_plan', 'weekly_only');
 
-        $org = $this->org();
+        $org = Organization::create(['name' => 'Acme']);
 
-        // Saying 'week' => 2000 and nothing else means limited weekly, session free.
+        // The session declares no share, so it does not narrow anything and the week,
+        // at the whole allowance, is what binds.
         $this->assertSame(2_000, $org->creditHeadroom());
     }
 
@@ -147,8 +152,8 @@ class AccountTest extends TestCase
     public function test_upgrading_raises_the_ceiling_without_restarting_the_window(): void
     {
         config()->set('larameter.plans', [
-            'free' => ['credits' => ['session' => 50, 'week' => 200]],
-            'pro' => ['credits' => ['session' => 500, 'week' => 5_000]],
+            'free' => ['credits_monthly' => 200],
+            'pro' => ['credits_monthly' => 5_000],
         ]);
 
         $org = $this->org();
@@ -158,9 +163,9 @@ class AccountTest extends TestCase
 
         $org->setCreditPlan('pro');
 
-        // 500 minus the 50 already spent this session. Upgrade-then-downgrade in one
-        // afternoon does not hand out allowances.
-        $this->assertSame(450, $org->creditHeadroom());
+        // A quarter of 5,000 is 1,250, minus the 50 already spent this session.
+        // Upgrade-then-downgrade in one afternoon does not hand out allowances.
+        $this->assertSame(1_200, $org->creditHeadroom());
     }
 
     public function test_a_usage_row_written_by_anything_at_all_moves_the_balance(): void

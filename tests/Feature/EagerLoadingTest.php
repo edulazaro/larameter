@@ -18,7 +18,7 @@ class EagerLoadingTest extends TestCase
     public function test_a_listing_that_preloads_the_account_runs_no_queries_to_read_balances(): void
     {
         config()->set('larameter.windows', ['week' => ['days' => 7, 'anchor' => 'fixed']]);
-        config()->set('larameter.plans', ['free' => ['credits' => ['week' => 100]]]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 100]]);
         config()->set('larameter.default_plan', 'free');
 
         foreach (range(1, 5) as $i) {

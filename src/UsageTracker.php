@@ -149,7 +149,7 @@ class UsageTracker
      */
     public function allowanceIn(Model $meterable, string $window): int
     {
-        return $this->account($meterable)->plan()->credits($window);
+        return $this->account($meterable)->plan()->creditsIn($window);
     }
 
     /**

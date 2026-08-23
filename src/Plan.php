@@ -54,20 +54,37 @@ class Plan
     }
 
     /**
-     * Allowance in one window. Zero without credits, -1 unlimited.
+     * The plan's whole allowance for a period, before any window narrows it.
+     *
+     * @return int
+     */
+    public function credits(): int
+    {
+        $key = (string) config('larameter.credits_key', 'credits_monthly');
+
+        return (int) ($this->config[$key] ?? 0);
+    }
+
+    /**
+     * Allowance in one window: the plan's total times that window's share.
+     *
+     * A window with no share does not narrow anything, so it gets the whole allowance.
+     * Zero when the plan grants nothing at all.
      *
      * @param string $window
      * @return int
      */
-    public function credits(string $window): int
+    public function creditsIn(string $window): int
     {
-        $credits = $this->config['credits'] ?? [];
+        $credits = $this->credits();
 
-        if ($credits === []) {
-            return 0;
+        if ($credits <= 0) {
+            return $credits === 0 ? 0 : Plans::UNLIMITED;
         }
 
-        return (int) ($credits[$window] ?? Plans::UNLIMITED);
+        $share = config('larameter.windows')[$window]['share'] ?? null;
+
+        return $share === null ? $credits : (int) ceil($credits * (float) $share);
     }
 
     /**

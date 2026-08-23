@@ -12,6 +12,10 @@ return [
     | Length is built from `minutes`, `hours`, `days` and `months`, combined. Weeks are
     | not a unit here: use days, so there is one obvious way to write seven of them.
     |
+    | `share` is what part of a plan's allowance fits in this window. A plan grants one
+    | figure and every window takes a slice of it, so raising a plan raises all of its
+    | windows at once and none can be left behind. A window with no share narrows nothing.
+    |
     | `anchor` decides when the NEXT window starts.
     |
     |   rolling  starts the moment credits are next spent after the old one expired, so
@@ -27,26 +31,29 @@ return [
     */
 
     'windows' => [
-        'session' => ['minutes' => 300, 'anchor' => 'rolling'],
-        'week' => ['days' => 7, 'anchor' => 'fixed'],
-        'month' => ['months' => 1, 'anchor' => 'fixed'],
+        'session' => ['minutes' => 300, 'anchor' => 'rolling', 'share' => 0.04],
+        'weekly' => ['days' => 7, 'anchor' => 'fixed', 'share' => 0.25],
+        'monthly' => ['months' => 1, 'anchor' => 'fixed', 'share' => 1],
     ],
 
     /*
     |--------------------------------------------------------------------------
     | Plans
     |--------------------------------------------------------------------------
-    | `credits` is the allowance per window. `limits` are ceilings on how many of
-    | something the plan allows, which you check yourself with canCreate().
+    | One figure per plan, under the key named by `credits_key`. Every window takes its
+    | share of it, so there is one number to keep right rather than one per window.
     |
-    | Two defaults that read in opposite directions, on purpose:
+    | `limits` are ceilings on how many of something exists: seats, projects. Those are
+    | counted by meters, not spent.
     |
-    |   - no `credits` at all means NO allowance. Credits are what you sell, so a plan
-    |     that does not mention them does not include any.
-    |   - a window MISSING from a `credits` map that exists does not constrain that plan.
-    |     Saying 'week' => 2000 and nothing else means limited weekly, session free.
-    |   - a `limits` key you never listed is unlimited. These are restrictions, and a
-    |     package you just installed should not refuse to create users on its own opinion.
+    | `features` are switches the plan turns on.
+    |
+    | Three defaults that read in different directions, on purpose:
+    |
+    |   - no allowance key at all means NO credits. Credits are what you sell.
+    |   - a `limits` key you never listed is unlimited. A restriction nobody wrote down
+    |     was never meant to apply.
+    |   - a `features` key you never listed is off. A feature is something you unlock.
     |
     | -1 is unlimited anywhere, which is not the same as 0.
     |
@@ -56,33 +63,13 @@ return [
 
     'plans' => [
         'free' => [
-            // Switches this plan turns on. Absent means off: a feature is something you
-            // unlock, so defaulting it on would give the product away on any plan you
-            // forgot to fill in. Read with $org->planAllows('api_access').
-            'features' => [
-                // 'api_access' => false,
-                // 'white_label' => false,
-            ],
-
-            // The weekly at half the monthly. What that ratio really decides is how much
-            // somebody may concentrate: at 50% they can burn the month in two weeks, at
-            // 25% they need all four.
-            //
-            // Set it too tight and the monthly number stops being what they actually get.
-            // People do not work evenly spread: they do the bulk of it the week before a
-            // deadline and then go quiet. Squeeze the week and that customer never reaches
-            // their month, so the figure you sold them is not the figure they receive.
-            'credits' => ['session' => 100, 'week' => 500, 'month' => 1_000],
+            'credits_monthly' => 1_000,
         ],
 
-        // The weekly cap is optional in two ways. Drop the window from `windows` above and
-        // it exists for nobody; leave it declared but out of a plan's `credits` and that
-        // plan alone goes uncapped weekly, which is how a top tier gets no brake while the
-        // cheaper ones keep theirs.
-        //
-        // 'hyper' => [
-        //     'credits' => ['session' => 5_000, 'month' => 100_000],
-        //     'limits' => ['seats' => -1],
+        // 'pro' => [
+        //     'credits_monthly' => 50_000,
+        //     'limits' => ['members' => 25],
+        //     'features' => ['api_access' => true],
         // ],
     ],
 

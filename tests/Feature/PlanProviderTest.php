@@ -37,10 +37,13 @@ class PlanProviderTest extends TestCase
         Subscriber::flushPlanProviders();
         Subscriber::$subscriptions = [];
 
+        config()->set('larameter.windows', [
+            'monthly' => ['months' => 1, 'anchor' => 'fixed', 'share' => 1],
+        ]);
         config()->set('larameter.plans', [
-            'free' => ['credits' => ['month' => 100]],
-            'pro' => ['stripe_price_id' => 'price_pro', 'credits' => ['month' => 5_000]],
-            'max' => ['stripe_price_id' => 'price_max', 'credits' => ['month' => 50_000]],
+            'free' => ['credits_monthly' => 100],
+            'pro' => ['stripe_price_id' => 'price_pro', 'credits_monthly' => 5_000],
+            'max' => ['stripe_price_id' => 'price_max', 'credits_monthly' => 50_000],
         ]);
         config()->set('larameter.default_plan', 'free');
         config()->set('larameter.override_column', 'forced_plan');
@@ -75,7 +78,7 @@ class PlanProviderTest extends TestCase
         // Same class, same answers. Where a plan came from is the provider's business and
         // stops there: a Plan is a handle, a name, an allowance and some ceilings.
         $this->assertSame($fromSubscription::class, $stored->plan()::class);
-        $this->assertSame($fromSubscription->credits('month'), $stored->plan()->credits('month'));
+        $this->assertSame($fromSubscription->credits(), $stored->plan()->credits());
     }
 
     public function test_an_override_beats_the_subscription(): void

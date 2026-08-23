@@ -23,31 +23,25 @@ is what you want the first time somebody asks why an account has five thousand c
 
 ## Windows
 
-An allowance is always an allowance PER something, and the shape most people know is the
-one Claude uses: a **five-hour session** that starts when you first write, and a **weekly**
-cap on top of it. Billing is monthly; usage is not.
+An allowance is always an allowance per something, and one period is rarely enough. A
+monthly figure alone lets a bad afternoon eat the month; a weekly cap on top is the brake.
 
     'windows' => [
-        'session' => ['minutes' => 300, 'anchor' => 'rolling'],
-        'week'    => ['days' => 7,      'anchor' => 'fixed'],
-        'month'   => ['months' => 1,    'anchor' => 'fixed'],
+        'session' => ['minutes' => 300, 'anchor' => 'rolling', 'share' => 0.04],
+        'weekly'  => ['days' => 7,      'anchor' => 'fixed',   'share' => 0.25],
+        'monthly' => ['months' => 1,    'anchor' => 'fixed',   'share' => 1],
     ],
 
+    'pro' => ['credits_monthly' => 50_000],
+
+**A plan grants one figure and every window takes a share of it.** Fifty thousand a month
+is twelve thousand five hundred a week and two thousand a sitting, and raising the plan
+raises all three. The alternative, a figure per window per plan, is seven plans times
+three numbers to keep consistent: the day somebody doubles the monthly and forgets the
+weekly, the weekly silently becomes the binding constraint and nothing says so.
+
 The tightest window is the one that binds. Length is built from `minutes`, `hours`, `days`
-and `months`, combined.
-
-**They are independent ceilings, not shares of one another.** 500 a week inside 1000 a
-month means a heavy week and then a second one exhausts the month, and three quiet weeks
-do not pile up into a fourth worth 2000. A brake you can save up is not a brake.
-
-What that ratio really decides is how much somebody may concentrate: at half the monthly
-they can burn it in two weeks, at a quarter they need all four. Set it too tight and the
-monthly figure stops being what they actually get, because people do not work evenly
-spread. They do the bulk of it the week before a deadline and then go quiet.
-
-**Every window is optional**, in two ways: drop it from `windows` and it exists for nobody;
-leave it declared but out of a plan's `credits` and that plan alone goes uncapped there,
-which is how a top tier gets no weekly brake while the cheaper ones keep theirs.
+and `months`, combined. A window with no `share` narrows nothing.
 
 **`anchor` decides when the next window starts**, and the two are not interchangeable:
 

@@ -19,7 +19,7 @@ class UsageTrackerTest extends TestCase
         parent::setUp();
 
         config()->set('larameter.windows', ['week' => ['days' => 7, 'anchor' => 'fixed']]);
-        config()->set('larameter.plans', ['free' => ['credits' => ['week' => 1_000_000]]]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 1_000_000]]);
         config()->set('larameter.default_plan', 'free');
 
         $this->meter = app(UsageTracker::class);
@@ -100,7 +100,7 @@ class UsageTrackerTest extends TestCase
     public function test_quantity_caps_are_a_different_question_from_credits(): void
     {
         config()->set('larameter.plans', ['free' => [
-            'credits' => ['week' => 100],
+            'credits_monthly' => 100,
             'limits' => ['members' => 5],
         ]]);
 
@@ -114,7 +114,7 @@ class UsageTrackerTest extends TestCase
 
     public function test_the_memo_answers_once_and_does_not_notice_later_spending(): void
     {
-        config()->set('larameter.plans', ['free' => ['credits' => ['week' => 10]]]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 10]]);
 
         $org = $this->org();
 

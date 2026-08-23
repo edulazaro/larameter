@@ -19,11 +19,11 @@ class WindowTest extends TestCase
         parent::setUp();
 
         config()->set('larameter.windows', [
-            'session' => ['minutes' => 300, 'anchor' => 'rolling'],
-            'week' => ['days' => 7, 'anchor' => 'fixed'],
+            'session' => ['minutes' => 300, 'anchor' => 'rolling', 'share' => 0.25],
+            'week' => ['days' => 7, 'anchor' => 'fixed', 'share' => 1],
         ]);
         config()->set('larameter.plans', [
-            'free' => ['credits' => ['session' => 50, 'week' => 200]],
+            'free' => ['credits_monthly' => 200],
         ]);
         config()->set('larameter.default_plan', 'free');
     }
@@ -132,10 +132,10 @@ class WindowTest extends TestCase
         // 2000 a week inside 4000 a month. The weekly is not a share of the monthly, it
         // is its own ceiling, and whichever runs out first is the one that binds.
         config()->set('larameter.windows', [
-            'week' => ['days' => 7, 'anchor' => 'fixed'],
-            'month' => ['months' => 1, 'anchor' => 'fixed'],
+            'week' => ['days' => 7, 'anchor' => 'fixed', 'share' => 0.5],
+            'month' => ['months' => 1, 'anchor' => 'fixed', 'share' => 1],
         ]);
-        config()->set('larameter.plans', ['free' => ['credits' => ['week' => 2_000, 'month' => 4_000]]]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 4_000]]);
 
         Carbon::setTestNow('2026-03-02 09:00:00');
         $org = $this->org();
@@ -159,10 +159,10 @@ class WindowTest extends TestCase
     public function test_an_unused_week_does_not_pile_up_into_the_next_one(): void
     {
         config()->set('larameter.windows', [
-            'week' => ['days' => 7, 'anchor' => 'fixed'],
-            'month' => ['months' => 1, 'anchor' => 'fixed'],
+            'week' => ['days' => 7, 'anchor' => 'fixed', 'share' => 0.5],
+            'month' => ['months' => 1, 'anchor' => 'fixed', 'share' => 1],
         ]);
-        config()->set('larameter.plans', ['free' => ['credits' => ['week' => 2_000, 'month' => 4_000]]]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 4_000]]);
 
         Carbon::setTestNow('2026-03-02 09:00:00');
         $org = $this->org();
@@ -176,10 +176,45 @@ class WindowTest extends TestCase
         $this->assertSame(2_000, $org->creditHeadroom());
     }
 
+    public function test_every_window_takes_its_share_of_one_figure(): void
+    {
+        config()->set('larameter.windows', [
+            'session' => ['minutes' => 300, 'anchor' => 'rolling', 'share' => 0.04],
+            'weekly' => ['days' => 7, 'anchor' => 'fixed', 'share' => 0.25],
+            'monthly' => ['months' => 1, 'anchor' => 'fixed', 'share' => 1],
+        ]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 50_000]]);
+
+        $org = $this->org();
+
+        $this->assertSame(2_000, $org->creditAllowanceIn('session'));
+        $this->assertSame(12_500, $org->creditAllowanceIn('weekly'));
+        $this->assertSame(50_000, $org->creditAllowanceIn('monthly'));
+    }
+
+    public function test_raising_a_plan_raises_every_window_with_it(): void
+    {
+        config()->set('larameter.windows', [
+            'weekly' => ['days' => 7, 'anchor' => 'fixed', 'share' => 0.25],
+            'monthly' => ['months' => 1, 'anchor' => 'fixed', 'share' => 1],
+        ]);
+        config()->set('larameter.plans', [
+            'free' => ['credits_monthly' => 1_000],
+            'pro' => ['credits_monthly' => 100_000],
+        ]);
+
+        $org = $this->org();
+        $org->setCreditPlan('pro');
+
+        // One figure per plan is the point: nobody can raise the monthly and leave the
+        // weekly behind, where it would silently become the binding constraint.
+        $this->assertSame(25_000, $org->creditAllowanceIn('weekly'));
+    }
+
     public function test_a_window_with_no_length_is_a_config_error_that_says_which_one(): void
     {
         config()->set('larameter.windows', ['broken' => ['anchor' => 'fixed']]);
-        config()->set('larameter.plans', ['free' => ['credits' => ['broken' => 10]]]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 10]]);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('window [broken] has no length');

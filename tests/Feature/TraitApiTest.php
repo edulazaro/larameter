@@ -24,8 +24,8 @@ class TraitApiTest extends TestCase
     {
         config()->set('larameter.windows', ['month' => ['months' => 1, 'anchor' => 'fixed']]);
         config()->set('larameter.plans', [
-            'free' => ['name' => 'Free', 'credits' => ['month' => 1_000_000]],
-            'pro' => ['name' => 'Pro', 'price' => 5900, 'credits' => ['month' => 5_000_000]],
+            'free' => ['name' => 'Free', 'credits_monthly' => 1_000_000],
+            'pro' => ['name' => 'Pro', 'price' => 5900, 'credits_monthly' => 5_000_000],
         ]);
         config()->set('larameter.default_plan', 'free');
         config()->set('larameter.override_column', null);

@@ -30,8 +30,8 @@ class PlanResolutionTest extends TestCase
     private function plans(): void
     {
         config()->set('larameter.plans', [
-            'free' => ['name' => 'Free', 'credits' => ['month' => 100]],
-            'pro' => ['name' => 'Pro', 'credits' => ['month' => 5_000], 'features' => ['api_access' => true]],
+            'free' => ['name' => 'Free', 'credits_monthly' => 100],
+            'pro' => ['name' => 'Pro', 'credits_monthly' => 5_000, 'features' => ['api_access' => true]],
         ]);
         config()->set('larameter.default_plan', 'free');
         config()->set('larameter.override_column', 'forced_plan');
@@ -125,7 +125,7 @@ class PlanResolutionTest extends TestCase
 
     public function test_exists_tells_no_plan_apart_from_a_plan_that_grants_little(): void
     {
-        config()->set('larameter.plans', ['tiny' => ['credits' => ['month' => 0]]]);
+        config()->set('larameter.plans', ['tiny' => ['credits_monthly' => 0]]);
         config()->set('larameter.default_plan', 'tiny');
         config()->set('larameter.override_column', null);
 
@@ -137,7 +137,7 @@ class PlanResolutionTest extends TestCase
     {
         config()->set('plans', [
             'credit_value' => 0.0001,
-            'tiers' => ['pro' => ['name' => 'Pro', 'credits' => ['month' => 5_000]]],
+            'tiers' => ['pro' => ['name' => 'Pro', 'credits_monthly' => 5_000]],
         ]);
         config()->set('larameter.plans_from', 'plans.tiers');
         config()->set('larameter.default_plan', 'pro');

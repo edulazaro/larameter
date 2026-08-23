@@ -20,8 +20,8 @@ class HasCreditsTest extends TestCase
 
         config()->set('larameter.windows', ['week' => ['days' => 7, 'anchor' => 'fixed']]);
         config()->set('larameter.plans', [
-            'free' => ['credits' => ['week' => 10]],
-            'pro' => ['credits' => ['week' => 500]],
+            'free' => ['credits_monthly' => 10],
+            'pro' => ['credits_monthly' => 500],
         ]);
         config()->set('larameter.default_plan', 'free');
         config()->set('larameter.prices', ['create_form' => 3]);

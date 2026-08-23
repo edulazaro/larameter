@@ -150,7 +150,7 @@ class Account extends Model
         foreach (array_keys($declared) as $key) {
             Window::lengthOf($key);
 
-            $allowance = $this->plan()->credits($key);
+            $allowance = $this->plan()->creditsIn($key);
 
             if ($allowance < 0) {
                 continue;
@@ -201,7 +201,7 @@ class Account extends Model
         }
 
         return $this->windows
-            ->filter(fn (Window $w) => $this->plan()->credits($w->key) >= 0)
+            ->filter(fn (Window $w) => $this->plan()->creditsIn($w->key) >= 0)
             ->map(fn (Window $w) => $w->endsAt())
             ->sort()
             ->first();

@@ -35,7 +35,7 @@ class MeterTest extends TestCase
 
     private function org(array $limits = ['members' => 2, 'cases' => -1]): Organization
     {
-        config()->set('larameter.plans', ['free' => ['credits' => [], 'limits' => $limits]]);
+        config()->set('larameter.plans', ['free' => ['credits_monthly' => 0, 'limits' => $limits]]);
         config()->set('larameter.default_plan', 'free');
 
         return Organization::create(['name' => 'Acme']);

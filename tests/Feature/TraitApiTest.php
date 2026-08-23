@@ -73,8 +73,8 @@ class TraitApiTest extends TestCase
         $org = $this->org();
         $org->setCreditPlan('pro');
 
-        $this->assertSame(5900, $org->plan()->price());
-        $this->assertSame('Pro', $org->plan()->name());
+        $this->assertSame(5900, $org->plan()->price);
+        $this->assertSame('Pro', $org->plan()->name);
     }
 
     public function test_the_history_hangs_off_the_account(): void

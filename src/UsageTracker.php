@@ -132,7 +132,7 @@ class UsageTracker
     /** The plan's allowance in one window, ignoring what has been spent of it. */
     public function allowanceIn(Model $meterable, string $window): int
     {
-        return Plans::creditsIn($this->account($meterable)->plan_key, $window);
+        return $this->account($meterable)->plan()->credits($window);
     }
 
     public function remaining(Model $meterable): int
@@ -151,19 +151,6 @@ class UsageTracker
         $key = $meterable->getMorphClass() . ':' . $meterable->getKey() . ':' . $credits;
 
         return $this->memo[$key] ??= $this->hasCredits($meterable, $credits);
-    }
-
-    // ─── Quantity caps ──────────────────────────────────────────────
-
-    /**
-     * How many more of something an account may create. A different question from
-     * credits: seats and projects are ceilings, not spend.
-     */
-    public function canCreate(Model $meterable, string $resource, int $current): bool
-    {
-        $limit = Plans::limit($this->account($meterable)->plan_key, $resource);
-
-        return $limit < 0 || $current < $limit;
     }
 
     // ─── Pricing ────────────────────────────────────────────────────

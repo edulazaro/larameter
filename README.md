@@ -168,9 +168,15 @@ One list for the whole app, because how billing works has one answer per project
 billed differently from another.
 
     $org->plan();                        // a Plan, never null
-    $org->plan()->exists();              // false when no provider answered
+    $org->plan()->exists;                // false when no provider answered
+    $org->plan()->handle;                // 'pro'
+    $org->plan()->name;                  // 'Pro'
     $org->plan()->allows('api_access');
     $org->onPlan('pro');
+
+Data is a property, a question is a method. `name` is a property and not a method because
+a plan name is a product name: Pro, Max, Hyper Team. Nobody translates those, any more
+than they translate the name of the application.
 
 **A plan knows where it came from.** `CashierPlanProvider` returns a `CashierPlan`, which
 answers everything a plain `Plan` does plus `renewsAt()`, `onTrial()` and `subscription()`.
@@ -299,7 +305,7 @@ hand out credits that never reach the balance.
     $org->creditHeadroom()          the plan only, tightest window
     $org->creditAllowanceIn('week') what the plan grants there
     $org->creditsResetAt()          when they can spend again, or null
-    $org->plan()->key()             the plan key, or '' when there is none
+    $org->plan()->handle            'pro', or '' when there is none
 
 `UsageTracker::hasCreditsMemoized()` answers once per instance, for hot paths that ask
 repeatedly. It does not notice spending that happens afterwards, deliberately: a turn that

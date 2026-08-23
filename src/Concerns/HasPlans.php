@@ -74,9 +74,9 @@ trait HasPlans
         return $this->resolvedPlan = new Plan('');
     }
 
-    public function onPlan(string $key): bool
+    public function onPlan(string $handle): bool
     {
-        return $this->plan()->key() === $key;
+        return $this->plan()->handle === $handle;
     }
 
     /** Forget the resolved plan, after a subscription changes mid-request. */

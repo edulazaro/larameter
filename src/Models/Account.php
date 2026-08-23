@@ -33,7 +33,7 @@ class Account extends Model
     protected $fillable = [
         'meterable_type',
         'meterable_id',
-        'plan_key',
+        'plan',
         'purchased_credits',
     ];
 
@@ -77,7 +77,7 @@ class Account extends Model
         ];
 
         try {
-            return static::firstOrCreate($keys, ['plan_key' => config('larameter.default_plan')]);
+            return static::firstOrCreate($keys, ['plan' => config('larameter.default_plan')]);
         } catch (QueryException $e) {
             // Two requests hit a new account at once and the unique index caught the
             // loser. The row exists now, which is all we wanted.
@@ -101,7 +101,7 @@ class Account extends Model
      *
      * The stored column is still the answer for a model with no plans at all.
      */
-    public function planFor(): Plan
+    public function plan(): Plan
     {
         if ($this->cachedPlan !== null) {
             return $this->cachedPlan;
@@ -113,7 +113,7 @@ class Account extends Model
             return $this->cachedPlan = $meterable->plan();
         }
 
-        return $this->cachedPlan = Plans::find($this->plan_key);
+        return $this->cachedPlan = Plans::find($this->plan);
     }
 
     // ─── Reading ────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ class Account extends Model
             // and nowhere near the config that caused it.
             Window::lengthOf($key);
 
-            $allowance = $this->planFor()->credits($key);
+            $allowance = $this->plan()->credits($key);
 
             if ($allowance < 0) {
                 continue;
@@ -181,7 +181,7 @@ class Account extends Model
         }
 
         return $this->windows
-            ->filter(fn (Window $w) => $this->planFor()->credits($w->key) >= 0)
+            ->filter(fn (Window $w) => $this->plan()->credits($w->key) >= 0)
             ->map(fn (Window $w) => $w->endsAt())
             ->sort()
             ->first();
@@ -276,7 +276,7 @@ class Account extends Model
      */
     public function setPlan(?string $key): void
     {
-        $this->plan_key = $key;
+        $this->plan = $key;
         $this->cachedPlan = null;
         $this->save();
     }

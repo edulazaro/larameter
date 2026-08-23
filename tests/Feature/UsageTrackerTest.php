@@ -102,16 +102,15 @@ class UsageTrackerTest extends TestCase
     {
         config()->set('larameter.plans', ['free' => [
             'credits' => ['week' => 100],
-            'limits' => ['max_users' => 3],
+            'limits' => ['members' => 5],
         ]]);
 
         $org = $this->org();
 
-        $this->assertTrue($this->meter->canCreate($org, 'max_users', 2));
-        $this->assertFalse($this->meter->canCreate($org, 'max_users', 3));
-
-        // A ceiling you never wrote down was never meant to apply.
-        $this->assertTrue($this->meter->canCreate($org, 'max_projects', 9999));
+        // Ceilings moved to HasMeters, which counts them itself instead of making the
+        // caller pass a number it might forget to work out.
+        $this->assertTrue($org->canCreate('members'));
+        $this->assertTrue($org->canCreate('anything_with_no_meter'));
     }
 
     public function test_the_memo_answers_once_and_does_not_notice_later_spending(): void

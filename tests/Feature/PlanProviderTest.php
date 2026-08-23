@@ -61,8 +61,8 @@ class PlanProviderTest extends TestCase
 
     public function test_the_subscription_decides_when_nothing_overrides_it(): void
     {
-        $this->assertSame('pro', $this->subscriber(price: 'price_pro')->plan()->key());
-        $this->assertSame('max', $this->subscriber(price: 'price_max')->plan()->key());
+        $this->assertSame('pro', $this->subscriber(price: 'price_pro')->plan()->handle);
+        $this->assertSame('max', $this->subscriber(price: 'price_max')->plan()->handle);
     }
 
     public function test_a_plan_from_a_subscription_knows_it_came_from_one(): void
@@ -77,7 +77,7 @@ class PlanProviderTest extends TestCase
         $model = $this->subscriber(price: 'price_pro', forced: 'max');
 
         // Somebody set this by hand, for a partner or a demo. Stripe does not undo it.
-        $this->assertSame('max', $model->plan()->key());
+        $this->assertSame('max', $model->plan()->handle);
     }
 
     public function test_a_price_belonging_to_no_plan_falls_through_instead_of_inventing_one(): void
@@ -85,7 +85,7 @@ class PlanProviderTest extends TestCase
         $model = $this->subscriber(price: 'price_that_nobody_mapped');
 
         // A price you forgot to map shows up as the default, not as unlimited everything.
-        $this->assertSame('free', $model->plan()->key());
+        $this->assertSame('free', $model->plan()->handle);
     }
 
     public function test_no_subscription_falls_through_to_what_was_stored(): void
@@ -93,7 +93,7 @@ class PlanProviderTest extends TestCase
         $model = $this->subscriber();
         $model->setCreditPlan('max');
 
-        $this->assertSame('max', $model->plan()->key());
+        $this->assertSame('max', $model->plan()->handle);
     }
 
     public function test_the_real_provider_is_inert_without_cashier(): void
@@ -109,7 +109,7 @@ class PlanProviderTest extends TestCase
 
         // The bug this exists to catch: plan() answered 'max' while the allowance came
         // from whatever the stored column said, and nothing anywhere disagreed out loud.
-        $this->assertSame('max', $model->plan()->key());
+        $this->assertSame('max', $model->plan()->handle);
         $this->assertSame(50_000, $model->creditHeadroom());
     }
 
@@ -121,6 +121,6 @@ class PlanProviderTest extends TestCase
 
         // Neither the override nor the subscription is consulted: this model was told to
         // use one provider and it uses one.
-        $this->assertSame('free', $model->plan()->key());
+        $this->assertSame('free', $model->plan()->handle);
     }
 }

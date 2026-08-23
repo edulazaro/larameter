@@ -9,19 +9,21 @@ namespace EduLazaro\Larameter;
  * is `$plan->allows('api_access')` instead of
  * `config('plans.' . $key . '.features.api_access') ?? false` scattered around, and so
  * that changing the shape of that array is one edit and not thirty.
+ *
+ * Data is properties, questions are methods. `name` is a property and not a method
+ * because a plan name is a product name: Pro, Max, Hyper Team. Nobody translates those,
+ * any more than they translate the name of the application.
  */
 class Plan
 {
-    /** @param array<string, mixed> $config */
-    public function __construct(
-        protected string $key,
-        protected array $config = [],
-    ) {}
+    /** The identifier, matching the key of your plans array. */
+    public readonly string $handle;
 
-    public function key(): string
-    {
-        return $this->key;
-    }
+    /** For showing. Falls back to the handle, so it is never empty for no reason. */
+    public readonly string $name;
+
+    /** Whatever unit you wrote it in. The package neither reads nor charges it. */
+    public readonly int $price;
 
     /**
      * Whether there is a plan at all.
@@ -30,27 +32,22 @@ class Plan
      * no plan gets one that grants no credits, no features and no ceilings. This is how
      * you tell that apart from a plan that happens to grant little.
      */
-    public function exists(): bool
-    {
-        return $this->key !== '';
-    }
+    public readonly bool $exists;
 
-    public function name(): string
-    {
-        return (string) ($this->config['name'] ?? $this->key);
-    }
-
-    /** Whatever unit you wrote it in. The package neither reads nor charges it. */
-    public function price(): int
-    {
-        return (int) ($this->config['price'] ?? 0);
+    /** @param array<string, mixed> $config */
+    public function __construct(
+        string $handle,
+        protected array $config = [],
+    ) {
+        $this->handle = $handle;
+        $this->exists = $handle !== '';
+        $this->name = (string) ($config['name'] ?? $handle);
+        $this->price = (int) ($config['price'] ?? 0);
     }
 
     public function priceId(): ?string
     {
-        $key = (string) config('larameter.price_id_key', 'stripe_price_id');
-
-        return $this->config[$key] ?? null;
+        return $this->config[(string) config('larameter.price_id_key', 'stripe_price_id')] ?? null;
     }
 
     /** Absent means off: a feature is something you unlock. */

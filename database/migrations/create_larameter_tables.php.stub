@@ -23,12 +23,14 @@ return new class extends Migration
             // package never learns what you call it.
             $table->morphs('meterable');
 
-            // Points at a key in config('larameter.plans'). Nullable on purpose: an
-            // account can hold purchased credits with no plan behind it at all.
+            // The handle of a plan, matching a key of your plans array. Nullable on
+            // purpose: an account can hold purchased credits with no plan behind it.
             //
-            // The package cannot know when your plan changes (Stripe, a manual override,
-            // a trial quietly lapsing), so YOU set this from wherever you do know.
-            $table->string('plan_key')->nullable();
+            // A fallback, not the source. With HasPlans on the model the plan is worked
+            // out from an override column or a subscription, and this is only reached
+            // when nothing else answers, which is the normal case for an app that sells
+            // bundles and no subscriptions.
+            $table->string('plan')->nullable();
 
             // Bought, gifted or adjusted. These sit OUTSIDE every window: that is the
             // whole point of them, and it is what lets somebody who has run out of plan

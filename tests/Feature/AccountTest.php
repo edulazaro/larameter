@@ -41,7 +41,7 @@ class AccountTest extends TestCase
 
         $this->assertNull($org->meterAccount()->first());
 
-        $this->assertSame('free', $org->creditAccount()->plan_key);
+        $this->assertSame('free', $org->plan()->handle);
         $this->assertSame(50, $org->creditsRemaining(), 'the tightest window');
     }
 
@@ -117,7 +117,7 @@ class AccountTest extends TestCase
 
         $org = $this->org();
 
-        $this->assertFalse($org->plan()->exists());
+        $this->assertFalse($org->plan()->exists);
         $this->assertSame(0, $org->creditsRemaining());
         $this->assertFalse($org->hasCredits());
 

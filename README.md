@@ -30,10 +30,24 @@ cap on top of it. Billing is monthly; usage is not.
     'windows' => [
         'session' => ['minutes' => 300, 'anchor' => 'rolling'],
         'week'    => ['days' => 7,      'anchor' => 'fixed'],
+        'month'   => ['months' => 1,    'anchor' => 'fixed'],
     ],
 
 The tightest window is the one that binds. Length is built from `minutes`, `hours`, `days`
 and `months`, combined.
+
+**They are independent ceilings, not shares of one another.** 500 a week inside 1000 a
+month means a heavy week and then a second one exhausts the month, and three quiet weeks
+do not pile up into a fourth worth 2000. A brake you can save up is not a brake.
+
+What that ratio really decides is how much somebody may concentrate: at half the monthly
+they can burn it in two weeks, at a quarter they need all four. Set it too tight and the
+monthly figure stops being what they actually get, because people do not work evenly
+spread. They do the bulk of it the week before a deadline and then go quiet.
+
+**Every window is optional**, in two ways: drop it from `windows` and it exists for nobody;
+leave it declared but out of a plan's `credits` and that plan alone goes uncapped there,
+which is how a top tier gets no weekly brake while the cheaper ones keep theirs.
 
 **`anchor` decides when the next window starts**, and the two are not interchangeable:
 
@@ -85,9 +99,9 @@ Three steps. No interface to implement, nothing to bind, no column on your table
 Name your plans in the config:
 
     'plans' => [
-        'free' => ['credits' => ['session' => 50, 'week' => 200]],
+        'free' => ['credits' => ['session' => 100, 'week' => 500, 'month' => 1_000]],
         'pro'  => [
-            'credits' => ['session' => 500, 'week' => 5_000],
+            'credits' => ['session' => 1_000, 'week' => 5_000, 'month' => 10_000],
             'limits'  => ['seats' => 25],
         ],
     ],

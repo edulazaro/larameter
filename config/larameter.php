@@ -29,6 +29,7 @@ return [
     'windows' => [
         'session' => ['minutes' => 300, 'anchor' => 'rolling'],
         'week' => ['days' => 7, 'anchor' => 'fixed'],
+        'month' => ['months' => 1, 'anchor' => 'fixed'],
     ],
 
     /*
@@ -55,12 +56,25 @@ return [
 
     'plans' => [
         'free' => [
-            'credits' => ['session' => 50, 'week' => 200],
+            // The weekly at half the monthly. What that ratio really decides is how much
+            // somebody may concentrate: at 50% they can burn the month in two weeks, at
+            // 25% they need all four.
+            //
+            // Set it too tight and the monthly number stops being what they actually get.
+            // People do not work evenly spread: they do the bulk of it the week before a
+            // deadline and then go quiet. Squeeze the week and that customer never reaches
+            // their month, so the figure you sold them is not the figure they receive.
+            'credits' => ['session' => 100, 'week' => 500, 'month' => 1_000],
         ],
 
-        // 'pro' => [
-        //     'credits' => ['session' => 500, 'week' => 5_000],
-        //     'limits' => ['seats' => 25],
+        // The weekly cap is optional in two ways. Drop the window from `windows` above and
+        // it exists for nobody; leave it declared but out of a plan's `credits` and that
+        // plan alone goes uncapped weekly, which is how a top tier gets no brake while the
+        // cheaper ones keep theirs.
+        //
+        // 'hyper' => [
+        //     'credits' => ['session' => 5_000, 'month' => 100_000],
+        //     'limits' => ['seats' => -1],
         // ],
     ],
 

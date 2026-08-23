@@ -29,11 +29,11 @@ class CashierPlanProvider implements PlanProvider
             return null;
         }
 
-        foreach (Plans::all() as $key => $config) {
-            $priceId = $config[(string) config('larameter.price_id_key', 'stripe_price_id')] ?? null;
+        foreach (Plans::all() as $handle => $config) {
+            $priceId = (new Plan($handle, $config))->priceId();
 
             if ($priceId && $model->subscribedToPrice($priceId, $type)) {
-                return new CashierPlan($key, $config, $model->subscription($type));
+                return new CashierPlan($handle, $config, $model->subscription($type));
             }
         }
 

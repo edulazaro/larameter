@@ -187,6 +187,32 @@ class Account extends Model
             ->first();
     }
 
+    /**
+     * Where a window's grid starts the first time it is opened.
+     *
+     * The billing date when the plan knows one, so a fixed window lands on the invoice
+     * rather than on whenever somebody first used the thing. Get this wrong and a
+     * customer who tried the app on Tuesday and paid on Thursday gets a fresh allowance
+     * five days after paying, every month, and it always falls their way so nobody ever
+     * reports it.
+     *
+     * Rolling windows keep now(): a session is not a billing period.
+     */
+    public function gridOriginFor(string $key): \DateTimeInterface
+    {
+        if (Window::anchorOf($key) !== 'fixed') {
+            return now();
+        }
+
+        $plan = $this->plan();
+
+        $billedFrom = method_exists($plan, 'startedAt') ? $plan->startedAt() : null;
+
+        // Never in the future, and never so far back that the grid has to be walked for
+        // years to catch up.
+        return $billedFrom && $billedFrom->isPast() ? $billedFrom : now();
+    }
+
     // ─── Spending ───────────────────────────────────────────────────
 
     /**
@@ -219,6 +245,13 @@ class Account extends Model
                 return $nothing;
             }
 
+            // Hand over what we already hold. Without this the locked copy goes and
+            // fetches the meterable again, and resolves its plan against a model that
+            // knows nothing of the request it is in.
+            if ($this->relationLoaded('meterable')) {
+                $locked->setRelation('meterable', $this->getRelation('meterable'));
+            }
+
             $locked->load('windows');
 
             $headroom = $locked->headroom();
@@ -236,7 +269,7 @@ class Account extends Model
                             'account_id' => $locked->getKey(),
                             'key' => $key,
                             'credits_used' => 0,
-                            'started_at' => now(),
+                            'started_at' => $locked->gridOriginFor($key),
                         ]);
                     } elseif ($window->isExpired()) {
                         $window->restart();

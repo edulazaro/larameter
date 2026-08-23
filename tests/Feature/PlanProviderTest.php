@@ -36,6 +36,7 @@ class PlanProviderTest extends TestCase
         parent::setUp();
 
         Subscriber::flushPlanProviders();
+        Subscriber::$subscriptions = [];
 
         config()->set('larameter.plans', [
             'free' => ['credits' => ['month' => 100]],
@@ -54,7 +55,7 @@ class PlanProviderTest extends TestCase
     private function subscriber(?string $price = null, ?string $forced = null): Subscriber
     {
         $model = Subscriber::create(['name' => 'Acme', 'forced_plan' => $forced]);
-        $model->subscribedPrice = $price;
+        Subscriber::subscribeFake($model->id, $price);
 
         return $model;
     }

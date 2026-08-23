@@ -72,7 +72,7 @@ class PlanResolutionTest extends TestCase
         config()->set('larameter.override_column', null);
 
         $org = Organization::create(['name' => 'Acme']);
-        $org->usage()->setPlan('pro');
+        $org->credits()->setPlan('pro');
 
         // The path for an app with no subscriptions at all: bundles of credits and a
         // plan somebody set.
@@ -87,7 +87,7 @@ class PlanResolutionTest extends TestCase
         $org = Organization::create(['name' => 'Acme']);
         $this->assertSame('free', $org->plan()->handle);
 
-        $org->usage()->setPlan('pro');
+        $org->credits()->setPlan('pro');
 
         // Without forgetting, the memo would keep answering 'free' for the rest of the
         // request, and whatever was charged next would be charged against the old plan.
@@ -105,7 +105,7 @@ class PlanResolutionTest extends TestCase
         // Never null, so nothing downstream needs a null check.
         $this->assertFalse($org->plan()->exists);
         $this->assertFalse($org->plan()->allows('api_access'));
-        $this->assertSame(0, $org->usage()->headroom());
+        $this->assertSame(0, $org->credits()->headroom());
     }
 
     public function test_no_plan_answers_everything_without_anybody_checking_for_null(): void

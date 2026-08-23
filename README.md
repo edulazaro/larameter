@@ -1,3 +1,5 @@
+![Larameter](art/banner.png)
+
 # Larameter
 
 Credit metering and plans for Laravel. Sell an allowance per session and per week, sell
@@ -58,7 +60,7 @@ and `months`, combined. A window with no `share` narrows nothing.
 one is reported as full without being restarted. Otherwise opening the app to check your
 balance would burn the session before a word was typed. That holds for reading them too:
 
-    foreach ($org->usage()->windows() as $window) {
+    foreach ($org->credits()->windows() as $window) {
         $window->key;            // 'weekly'
         $window->allowance();    // 12_500
         $window->used();         // 12_000
@@ -120,11 +122,11 @@ Add the trait to whatever you bill:
 
 Done. The account row appears the first time you touch it.
 
-    $org->usage()->allows('create_form');
-    $org->usage()->charge('create_form');
-    $org->usage()->meter('gpt-4o', 'token', $in, $out);
-    $org->usage()->remaining();
-    $org->usage()->resetsAt();
+    $org->credits()->allows('create_form');
+    $org->credits()->charge('create_form');
+    $org->credits()->meter('gpt-4o', 'token', $in, $out);
+    $org->credits()->remaining();
+    $org->credits()->resetsAt();
 
 **Three doors and no more.** `plan()` answers what was bought, `usage()` what has been
 spent, `quota()` how many of something may exist. A trait goes into a class you did not
@@ -194,7 +196,7 @@ default. What a provider had to know to answer stays inside that provider.
 **Plans are optional.** `HasCredits` alone is an app that sells bundles: no plan, no
 allowance, everything from what was purchased.
 
-`$org->usage()->setPlan()` remains for the case nothing can resolve: no override
+`$org->credits()->setPlan()` remains for the case nothing can resolve: no override
 column, no subscription. It is the fallback, not the source.
 
 Changing plan does not restart the windows. An upgrade raises the ceiling over what has
@@ -273,9 +275,9 @@ installed would start refusing to create things it was never told to count.
 
 ## Credits in
 
-    $org->usage()->deposit(5_000, reason: 'purchase', source: $payment);
-    $org->usage()->deposit(500, reason: 'gift', note: 'launch promo');
-    $org->usage()->deposit(-200, reason: 'adjustment', note: 'duplicate charge');
+    $org->credits()->deposit(5_000, reason: 'purchase', source: $payment);
+    $org->credits()->deposit(500, reason: 'gift', note: 'launch promo');
+    $org->credits()->deposit(-200, reason: 'adjustment', note: 'duplicate charge');
 
 One call, two tables: the deposit row and the balance move together and cannot be written
 apart. Negative is allowed, which is how a correction is written, and the balance clamps at
@@ -287,8 +289,8 @@ out of session, you buy more usage, you carry on, and your week has not moved me
 
 ## Credits out
 
-    $org->usage()->charge('create_form');                  fixed price by name
-    $org->usage()->meter('gpt-4o', 'token', $in, $out);    priced per unit
+    $org->credits()->charge('create_form');                  fixed price by name
+    $org->credits()->meter('gpt-4o', 'token', $in, $out);    priced per unit
 
 Everything is expressed in credits, including the rates:
 
@@ -318,16 +320,16 @@ hand out credits that never reach the balance.
 
 ## Asking
 
-    $org->usage()->in('weekly')         one window: allowance, used, remaining, endsAt
-    $org->usage()->windows()            all of them, which is a usage screen
-    $org->usage()->allows()             may it spend one credit?
-    $org->usage()->allows(250)          may it spend 250?
-    $org->usage()->allows('email')      enough for what that action costs?
-    $org->usage()->price('email')       what it costs
-    $org->usage()->remaining()          headroom plus what was bought
-    $org->usage()->headroom()           the plan only, tightest window
-    $org->usage()->allowanceIn('week')  what the plan grants there
-    $org->usage()->resetsAt()           when it can spend again, or null
+    $org->credits()->in('weekly')         one window: allowance, used, remaining, endsAt
+    $org->credits()->windows()            all of them, which is a usage screen
+    $org->credits()->allows()             may it spend one credit?
+    $org->credits()->allows(250)          may it spend 250?
+    $org->credits()->allows('email')      enough for what that action costs?
+    $org->credits()->price('email')       what it costs
+    $org->credits()->remaining()          headroom plus what was bought
+    $org->credits()->headroom()           the plan only, tightest window
+    $org->credits()->allowanceIn('week')  what the plan grants there
+    $org->credits()->resetsAt()           when it can spend again, or null
     $org->plan()->handle                'pro', or '' when there is none
 
 `allows()` takes a number of credits or the name of an action, because charging does

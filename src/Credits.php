@@ -11,15 +11,19 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Everything to do with credits, for one thing you bill.
  *
- * Reached through the model, as $org->usage(). A door rather than a dozen methods
+ * Reached through the model, as $org->credits(). A door rather than a dozen methods
  * flattened into somebody else's class: a trait that claims common words collides with
  * whatever else that model already uses, and a collision between traits is a fatal
  * error when the class is compiled, not something the host app can catch.
  *
  * Its sisters are $org->plan(), which answers what was bought, and $org->quota(),
  * which answers how many of something may exist.
+ *
+ * Not called Usage, though that is what it reads and writes: laracrate's HasFolders
+ * already brings a usage() for disk space, and two traits claiming one name is a
+ * fatal error. Credits is the more precise word anyway.
  */
-class Usage
+class Credits
 {
     /**
      * Create the credit view of a model.
@@ -182,7 +186,7 @@ class Usage
      * @param Model|null $subject
      * @param int|null $credits
      * @param array<string, mixed> $metadata
-     * @return UsageRecord
+     * @return CreditsRecord
      */
     public function charge(
         string $operation,
@@ -204,7 +208,7 @@ class Usage
      * @param Model|null $actor
      * @param Model|null $subject
      * @param array<string, mixed> $metadata
-     * @return UsageRecord
+     * @return CreditsRecord
      */
     public function meter(
         string $operation,
@@ -288,7 +292,7 @@ class Usage
     /**
      * The tracker that does the charging.
      *
-     * @return UsageTracker
+     * @return CreditsTracker
      */
     protected function tracker(): UsageTracker
     {

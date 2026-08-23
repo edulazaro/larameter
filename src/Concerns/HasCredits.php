@@ -3,7 +3,7 @@
 namespace EduLazaro\Larameter\Concerns;
 
 use EduLazaro\Larameter\Models\Account;
-use EduLazaro\Larameter\Usage;
+use EduLazaro\Larameter\Credits;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  * interface to implement, nothing to bind, and no column on your own table.
  *
  * It brings one method, on purpose. Everything to do with credits hangs off
- * $org->usage(), because a trait goes into somebody else's class and every name it
+ * $org->credits(), because a trait goes into somebody else's class and every name it
  * claims there is a name that class can no longer use. Two traits claiming one name is
  * a fatal error when the class is compiled.
  *
@@ -22,17 +22,17 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
  */
 trait HasCredits
 {
-    /** @var Usage|null Resolved once per instance. */
-    private ?Usage $usage = null;
+    /** @var Credits|null Resolved once per instance. */
+    private ?Credits $credits = null;
 
     /**
      * Credits: the balance, what things cost, charging, and topping up.
      *
-     * @return Usage
+     * @return Credits
      */
-    public function usage(): Usage
+    public function credits(): Credits
     {
-        return $this->usage ??= new Usage($this);
+        return $this->credits ??= new Credits($this);
     }
 
     /**

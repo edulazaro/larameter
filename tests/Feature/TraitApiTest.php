@@ -45,7 +45,7 @@ class TraitApiTest extends TestCase
     {
         $org = $this->org();
 
-        $record = $org->usage()->meter('gpt-4o', 'token', 1_000_000, 1_000_000);
+        $record = $org->credits()->meter('gpt-4o', 'token', 1_000_000, 1_000_000);
 
         // $2.50 + $10.00 at 10000 credits per unit of cost.
         $this->assertSame(125_000, $record->credits);
@@ -59,7 +59,7 @@ class TraitApiTest extends TestCase
         $actor = $this->org();
         $subject = $this->org();
 
-        $record = $org->usage()->meter('gpt-4o', 'token', 1_000, 0, $actor, $subject);
+        $record = $org->credits()->meter('gpt-4o', 'token', 1_000, 0, $actor, $subject);
 
         $this->assertTrue($record->actor->is($actor));
         $this->assertTrue($record->subject->is($subject));
@@ -76,7 +76,7 @@ class TraitApiTest extends TestCase
     public function test_the_plan_carries_whatever_else_you_wrote_in_it(): void
     {
         $org = $this->org();
-        $org->usage()->setPlan('pro');
+        $org->credits()->setPlan('pro');
 
         $this->assertSame(5900, $org->plan()->price);
         $this->assertSame('Pro', $org->plan()->name);
@@ -85,10 +85,10 @@ class TraitApiTest extends TestCase
     public function test_the_history_hangs_off_the_account(): void
     {
         $org = $this->org();
-        $org->usage()->deposit(500);
-        $org->usage()->charge('thing', credits: 10);
+        $org->credits()->deposit(500);
+        $org->credits()->charge('thing', credits: 10);
 
-        $account = $org->usage()->account();
+        $account = $org->credits()->account();
 
         $this->assertCount(1, $account->deposits);
         $this->assertCount(1, $account->usage);
@@ -114,6 +114,7 @@ class TraitApiTest extends TestCase
 
         $this->assertSame([
             'bootHasMeters',           // Eloquent calls it; not ours to name
+            'credits',                 // <- door
             'flushPlanProviders',      // static, for tests
             'flushRegisteredMeters',   // static, for tests
             'forgetPlan',              // after a subscription changes mid-request
@@ -122,7 +123,6 @@ class TraitApiTest extends TestCase
             'plan',                    // <- door
             'quota',                   // <- door
             'setPlanProviders',        // static
-            'usage',                   // <- door
         ], $brought);
     }
 }

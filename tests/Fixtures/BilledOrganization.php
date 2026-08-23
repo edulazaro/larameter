@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * A model billed through Cashier, which is the ordinary case for anything on a plan.
+ * A model that already uses other packages, which is every model this will ever go on.
  *
  * Declaring this class is itself the test: two traits claiming one method name is a
  * fatal error when the class is compiled, not something a test can catch.
@@ -20,6 +20,7 @@ class BilledOrganization extends Model
     use HasPlans;
     use HasMeters;
     use Billed;
+    use Foldered;
 
     protected $table = 'organizations';
 

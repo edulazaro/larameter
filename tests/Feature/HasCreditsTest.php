@@ -31,19 +31,19 @@ class HasCreditsTest extends TestCase
     {
         $org = Organization::create(['name' => 'Acme']);
 
-        $this->assertTrue($org->usage()->allows());
-        $this->assertSame(10, $org->usage()->allowanceIn('week'));
-        $this->assertSame(10, $org->usage()->remaining());
+        $this->assertTrue($org->credits()->allows());
+        $this->assertSame(10, $org->credits()->allowanceIn('week'));
+        $this->assertSame(10, $org->credits()->remaining());
 
-        $org->usage()->charge('create_form');
+        $org->credits()->charge('create_form');
 
-        $this->assertSame(7, $org->usage()->remaining());
-        $this->assertSame(1, $org->usage()->records()->count());
+        $this->assertSame(7, $org->credits()->remaining());
+        $this->assertSame(1, $org->credits()->records()->count());
 
-        $org->usage()->charge('create_form', credits: 7);
+        $org->credits()->charge('create_form', credits: 7);
 
-        $this->assertSame(0, $org->usage()->remaining());
-        $this->assertFalse($org->usage()->allows());
+        $this->assertSame(0, $org->credits()->remaining());
+        $this->assertFalse($org->credits()->allows());
     }
 
     public function test_the_plan_is_set_from_wherever_the_app_learns_it_changed(): void
@@ -54,14 +54,14 @@ class HasCreditsTest extends TestCase
 
         // From a Cashier subscription observer, a grant, an admin action. The package
         // cannot know, so it does not try.
-        $org->usage()->setPlan('pro');
+        $org->credits()->setPlan('pro');
 
         $this->assertSame('pro', $org->plan()->handle);
-        $this->assertSame(500, $org->usage()->headroom());
+        $this->assertSame(500, $org->credits()->headroom());
 
         // Clearing the stored key does not mean "no plan": it means stop forcing one, so
         // whatever resolves next decides. With no subscription that is the default.
-        $org->usage()->setPlan(null);
+        $org->credits()->setPlan(null);
 
         $this->assertTrue($org->plan()->is('free'));
     }
@@ -70,9 +70,9 @@ class HasCreditsTest extends TestCase
     {
         $org = Organization::create(['name' => 'Acme']);
 
-        $org->usage()->deposit(1_000);
+        $org->credits()->deposit(1_000);
 
-        $this->assertSame(1_010, $org->usage()->remaining());
+        $this->assertSame(1_010, $org->credits()->remaining());
     }
 
     public function test_it_answers_what_an_action_costs_without_being_told(): void
@@ -83,16 +83,16 @@ class HasCreditsTest extends TestCase
 
         $org = Organization::create(['name' => 'Acme']);
 
-        $this->assertSame(10, $org->usage()->price('search_legislation'));
-        $this->assertTrue($org->usage()->allows('search_legislation'));
+        $this->assertSame(10, $org->credits()->price('search_legislation'));
+        $this->assertTrue($org->credits()->allows('search_legislation'));
 
-        $org->usage()->charge('search_legislation');
-        $org->usage()->charge('search_legislation');
+        $org->credits()->charge('search_legislation');
+        $org->credits()->charge('search_legislation');
 
         // Five left, and the search costs ten.
-        $this->assertSame(5, $org->fresh()->usage()->remaining());
-        $this->assertFalse($org->fresh()->usage()->allows('search_legislation'));
-        $this->assertTrue($org->fresh()->usage()->allows(), 'still has credit, just not enough');
+        $this->assertSame(5, $org->fresh()->credits()->remaining());
+        $this->assertFalse($org->fresh()->credits()->allows('search_legislation'));
+        $this->assertTrue($org->fresh()->credits()->allows(), 'still has credit, just not enough');
     }
 
     public function test_an_unpriced_action_is_always_affordable(): void
@@ -103,7 +103,7 @@ class HasCreditsTest extends TestCase
 
         $org = Organization::create(['name' => 'Acme']);
 
-        $this->assertFalse($org->usage()->allows());
-        $this->assertTrue($org->usage()->allows('something_free'));
+        $this->assertFalse($org->credits()->allows());
+        $this->assertTrue($org->credits()->allows('something_free'));
     }
 }

@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  * Reached through the model, as $org->quota(). A different question from credits:
  * those are spent and come back, these are a standing count the plan caps.
  *
- * Its sisters are $org->plan(), which answers what was bought, and $org->usage(),
+ * Its sisters are $org->plan(), which answers what was bought, and $org->credits(),
  * which answers what has been spent.
  */
 class Quota

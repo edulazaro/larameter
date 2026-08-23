@@ -172,17 +172,19 @@ class MeterTest extends TestCase
         $this->assertContains('projects', $keys, 'added from outside');
     }
 
-    public function test_the_trait_sits_beside_cashiers_billable(): void
+    public function test_the_traits_sit_beside_the_packages_already_on_the_model(): void
     {
-        // Cashier's Billable brings a meters() of its own, for Stripe's billing meters.
-        // Two traits claiming one name is a fatal error at class load, which no host app
-        // can work around without insteadof, so this trait keeps its hands off the word.
+        // Cashier's Billable brings a meters() for Stripe's billing meters, laracrate's
+        // HasFolders a usage() for disk space. Both were claimed by this package once,
+        // and both are a fatal error at class load rather than something a host app can
+        // catch. Every name these traits bring is a name that model can no longer use.
         config()->set('larameter.plans', ['free' => ['limits' => ['members' => 5]]]);
         config()->set('larameter.default_plan', 'free');
 
         $org = BilledOrganization::create(['name' => 'Acme']);
 
         $this->assertSame(['stripe'], $org->meters()->all(), 'Cashier keeps its meters()');
+        $this->assertSame(0, $org->usage('documents'), 'laracrate keeps its usage()');
         $this->assertArrayHasKey('members', $org->quota()->all(), 'and the package has its own');
         $this->assertTrue($org->quota()->allows('members'));
     }

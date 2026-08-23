@@ -122,8 +122,8 @@ class UsageTracker
             return $meterable;
         }
 
-        if (method_exists($meterable, 'usage')) {
-            return $meterable->usage()->account();
+        if (method_exists($meterable, 'credits')) {
+            return $meterable->credits()->account();
         }
 
         return Account::for($meterable);

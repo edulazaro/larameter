@@ -22,7 +22,7 @@ class EagerLoadingTest extends TestCase
         config()->set('larameter.default_plan', 'free');
 
         foreach (range(1, 5) as $i) {
-            Organization::create(['name' => "org {$i}"])->usage()->charge('thing', credits: 5);
+            Organization::create(['name' => "org {$i}"])->credits()->charge('thing', credits: 5);
         }
 
         $orgs = Organization::with('meterAccount.windows')->get();
@@ -30,7 +30,7 @@ class EagerLoadingTest extends TestCase
         DB::enableQueryLog();
 
         foreach ($orgs as $org) {
-            $this->assertSame(95, $org->usage()->remaining());
+            $this->assertSame(95, $org->credits()->remaining());
         }
 
         // The with() the caller wrote has to actually do something. It did not until

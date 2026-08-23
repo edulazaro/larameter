@@ -127,6 +127,55 @@ class WindowTest extends TestCase
         $this->assertSame(1, $this->window($org, 'week')->credits_used);
     }
 
+    public function test_the_weekly_and_monthly_caps_are_independent_of_each_other(): void
+    {
+        // 2000 a week inside 4000 a month. The weekly is not a share of the monthly, it
+        // is its own ceiling, and whichever runs out first is the one that binds.
+        config()->set('larameter.windows', [
+            'week' => ['days' => 7, 'anchor' => 'fixed'],
+            'month' => ['months' => 1, 'anchor' => 'fixed'],
+        ]);
+        config()->set('larameter.plans', ['free' => ['credits' => ['week' => 2_000, 'month' => 4_000]]]);
+
+        Carbon::setTestNow('2026-03-02 09:00:00');
+        $org = $this->org();
+
+        $this->assertSame(2_000, $org->creditHeadroom(), 'the week is what binds at the start');
+
+        $org->chargeCredits('a heavy week', credits: 2_000);
+        $this->assertSame(0, $org->creditHeadroom());
+
+        // Second week: the weekly came back, the monthly did not.
+        Carbon::setTestNow('2026-03-09 09:00:00');
+        $this->assertSame(2_000, $org->creditHeadroom());
+
+        $org->chargeCredits('another heavy week', credits: 2_000);
+
+        // Third week. The week is fresh and the month is spent, so the month binds now.
+        Carbon::setTestNow('2026-03-16 09:00:00');
+        $this->assertSame(0, $org->creditHeadroom(), 'the month is gone until it renews');
+    }
+
+    public function test_an_unused_week_does_not_pile_up_into_the_next_one(): void
+    {
+        config()->set('larameter.windows', [
+            'week' => ['days' => 7, 'anchor' => 'fixed'],
+            'month' => ['months' => 1, 'anchor' => 'fixed'],
+        ]);
+        config()->set('larameter.plans', ['free' => ['credits' => ['week' => 2_000, 'month' => 4_000]]]);
+
+        Carbon::setTestNow('2026-03-02 09:00:00');
+        $org = $this->org();
+        $org->chargeCredits('open the grid', credits: 1);
+
+        // Three weeks untouched.
+        Carbon::setTestNow('2026-03-23 09:00:00');
+
+        // Still 2000, not 6000. This is the whole point of a weekly cap: it is a brake,
+        // and a brake you can save up is not a brake.
+        $this->assertSame(2_000, $org->creditHeadroom());
+    }
+
     public function test_a_window_with_no_length_is_a_config_error_that_says_which_one(): void
     {
         config()->set('larameter.windows', ['broken' => ['anchor' => 'fixed']]);

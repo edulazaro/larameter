@@ -2,18 +2,19 @@
 
 namespace EduLazaro\Larameter\Concerns;
 
-use EduLazaro\Larameter\Attributes\MeteredBy;
 use EduLazaro\Larameter\Contracts\Meter;
-use ReflectionClass;
 
 /**
- * Put this on the model a plan caps, and declare its meters either way:
+ * Put this on the model a plan caps, and list its meters:
  *
- *     #[MeteredBy(MemberMeter::class)]
- *     class Organization extends Model { use HasMeters; }
+ *     class Organization extends Model
+ *     {
+ *         use HasCredits, HasMeters;
  *
- *     // or, from a service provider
- *     Organization::meter(MemberMeter::class);
+ *         protected array $meters = [MemberMeter::class, CaseMeter::class];
+ *     }
+ *
+ * A plain list and not a map, because a meter already knows its own key.
  *
  * Then nothing has to remember how to count:
  *
@@ -22,28 +23,42 @@ use ReflectionClass;
  */
 trait HasMeters
 {
-    /** @var array<string, array<int, class-string<Meter>>> Keyed by model, so subclasses do not share. */
-    private static array $meterClasses = [];
+    /**
+     * Registered from outside the class, keyed by model so subclasses do not share.
+     *
+     * @var array<string, array<int, class-string<Meter>>>
+     */
+    private static array $registeredMeters = [];
 
     /** @var array<string, Meter> Resolved for this instance only. */
     private array $meterInstances = [];
 
-    /** Read once per model, the first time anyone asks. */
-    public static function bootHasMeters(): void
+    /**
+     * Add a meter to a model you cannot edit: a module that brings its own relation and
+     * wants it capped, or a meter that only applies when something is switched on.
+     *
+     * The same pair as $casts and mergeCasts(): the property declares, this one adds.
+     *
+     * @param class-string<Meter> $meterClass
+     */
+    public static function meter(string $meterClass): void
     {
-        foreach ((new ReflectionClass(static::class))->getAttributes(MeteredBy::class) as $attribute) {
-            static::meter($attribute->newInstance()->meterClass);
+        $registered = static::$registeredMeters[static::class] ?? [];
+
+        if (! in_array($meterClass, $registered, true)) {
+            static::$registeredMeters[static::class] = [...$registered, $meterClass];
         }
     }
 
-    /** @param class-string<Meter> $meterClass */
-    public static function meter(string $meterClass): void
+    /**
+     * Drop everything registered from outside, for this model.
+     *
+     * The store is static, so without this a test that registers a meter leaks it into
+     * every test that runs after it, and the suite starts depending on its own order.
+     */
+    public static function flushRegisteredMeters(): void
     {
-        $registered = static::$meterClasses[static::class] ?? [];
-
-        if (! in_array($meterClass, $registered, true)) {
-            static::$meterClasses[static::class] = [...$registered, $meterClass];
-        }
+        unset(static::$registeredMeters[static::class]);
     }
 
     /** @return array<string, Meter> Keyed by the meter's key. */
@@ -53,7 +68,10 @@ trait HasMeters
             return $this->meterInstances;
         }
 
-        foreach (static::$meterClasses[static::class] ?? [] as $meterClass) {
+        $declared = property_exists($this, 'meters') ? (array) $this->meters : [];
+        $classes = array_unique([...$declared, ...(static::$registeredMeters[static::class] ?? [])]);
+
+        foreach ($classes as $meterClass) {
             $meter = new $meterClass($this);
             $this->meterInstances[$meter->key()] = $meter;
         }

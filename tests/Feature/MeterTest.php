@@ -7,6 +7,7 @@ use EduLazaro\Larameter\Tests\Fixtures\Matter;
 use EduLazaro\Larameter\Tests\Fixtures\Member;
 use EduLazaro\Larameter\Tests\Fixtures\MemberMeter;
 use EduLazaro\Larameter\Tests\Fixtures\Organization;
+use EduLazaro\Larameter\Tests\Fixtures\ProjectMeter;
 use EduLazaro\Larameter\Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -23,6 +24,13 @@ class MeterTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Organization::flushRegisteredMeters();
+    }
+
     private function org(array $limits = ['members' => 2, 'cases' => -1]): Organization
     {
         config()->set('larameter.plans', ['free' => ['credits' => [], 'limits' => $limits]]);
@@ -31,7 +39,7 @@ class MeterTest extends TestCase
         return Organization::create(['name' => 'Acme']);
     }
 
-    public function test_the_attribute_is_all_the_declaration_there_is(): void
+    public function test_the_declared_list_is_all_there_is_to_it(): void
     {
         $org = $this->org();
 
@@ -106,12 +114,22 @@ class MeterTest extends TestCase
         ], $org->fresh()->usageSummary());
     }
 
-    public function test_a_meter_can_also_be_registered_from_a_provider(): void
+    public function test_a_meter_can_also_be_added_from_outside_the_class(): void
     {
+        // For a model you cannot edit. Declaring it AND registering it must not double
+        // it, or the usage screen shows every resource as many times as it was mentioned.
         Organization::meter(MemberMeter::class);
 
-        // Registering the same one twice must not double it, or the usage screen shows
-        // every resource as many times as somebody mentioned it.
         $this->assertCount(2, $this->org()->meters());
+    }
+
+    public function test_something_registered_from_outside_joins_the_declared_ones(): void
+    {
+        Organization::meter(ProjectMeter::class);
+
+        $keys = array_keys($this->org()->meters());
+
+        $this->assertContains('members', $keys, 'declared on the model');
+        $this->assertContains('projects', $keys, 'added from outside');
     }
 }

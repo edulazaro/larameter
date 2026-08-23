@@ -167,16 +167,24 @@ what exists, and the plan says how many at once. Those are meters.
         }
     }
 
-Declare it on the model, either way:
+List it on the model:
 
-    #[MeteredBy(MemberMeter::class)]
     class Organization extends Model
     {
         use HasCredits, HasMeters;
+
+        protected array $meters = [MemberMeter::class, CaseMeter::class];
     }
 
-    // or, from a service provider
+A plain list and not a map, because a meter already knows its own key.
+
+For a model you cannot edit, a module bringing its own relation, or a meter that only
+applies when something is switched on, there is the other half of the pair:
+
     Organization::meter(MemberMeter::class);
+
+The same arrangement as `$casts` and `mergeCasts()`: the property declares, the call adds.
+Doing both with the same meter does not double it.
 
 Then nothing has to remember how to count:
 

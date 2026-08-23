@@ -8,11 +8,55 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('larameter_usage', function (Blueprint $table) {
+        /*
+        | The balance. One row per thing you meter, and the source of truth for what it
+        | may still spend.
+        |
+        | An earlier design had no balance at all and summed the detail table over a
+        | window instead. That works right up until you sell credits: a top-up is not
+        | consumption, so it cannot be expressed as a sum of what was spent. Once you
+        | have purchased credits the stored balance is not an optimisation, it is the
+        | model.
+        */
+        Schema::create('larameter_accounts', function (Blueprint $table) {
             $table->id();
 
-            // Who is billed. Morphs, so the package never learns what you call a tenant.
-            $table->morphs('account');
+            // Whatever you bill: an organisation, a user, a workspace. Morphs, so the
+            // package never learns what you call it.
+            $table->morphs('meterable');
+
+            // Points at a key in config('larameter.plans'). Nullable on purpose: an
+            // account can hold purchased credits with no plan behind it at all.
+            //
+            // The package cannot know when your plan changes (Stripe, a manual override,
+            // a trial quietly lapsing), so YOU set this from wherever you do know.
+            $table->string('plan_key')->nullable();
+
+            // Two buckets, because they behave differently. The plan allowance resets
+            // every period; purchased credits accumulate and survive it. Spending goes
+            // through the allowance first, so what somebody paid for does not evaporate
+            // at the turn of a month.
+            $table->unsignedBigInteger('purchased_credits')->default(0);
+            $table->unsignedBigInteger('period_credits_used')->default(0);
+            $table->timestamp('period_started_at')->nullable();
+
+            $table->timestamps();
+
+            $table->unique(['meterable_type', 'meterable_id']);
+        });
+
+        /*
+        | The detail. Append-only, and never the source of the balance.
+        |
+        | This is what you audit with, invoice from, and reconcile against when the
+        | balance and the rows disagree. Deleting from it does not give anyone credits
+        | back, which is the right way round.
+        */
+        Schema::create('larameter_usage', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('account_id')
+                ->constrained('larameter_accounts')
+                ->cascadeOnDelete();
 
             // Who triggered it, when somebody did. Null for scheduled work.
             $table->nullableMorphs('actor');
@@ -21,29 +65,31 @@ return new class extends Migration
             // back to the thing that caused it.
             $table->nullableMorphs('subject');
 
+            // 'create_form' for a fixed price, or the priced thing for metered usage,
+            // which for an LLM call is the model name.
             $table->string('operation');
 
-            // 'action' for a fixed price, or the metered unit: token, minute, page.
+            // 'action', or the metered unit: token, minute, page. A label, so a bill can
+            // tell one kind of row from another.
             $table->string('unit')->default('action');
             $table->unsignedBigInteger('quantity_in')->default(0);
             $table->unsignedBigInteger('quantity_out')->default(0);
 
-            // What it cost the account, and what it cost you. The second is nullable
-            // because plenty of chargeable actions have no external bill behind them.
+            // What it cost the account, and what it cost you. The second is nullable:
+            // plenty of chargeable actions have no external bill behind them.
             $table->unsignedInteger('credits')->default(0);
             $table->decimal('cost', 12, 6)->nullable();
 
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            // The balance is this table summed over a window, so this index is not an
-            // optimisation, it is what makes the design viable.
-            $table->index(['account_type', 'account_id', 'created_at']);
+            $table->index(['account_id', 'created_at']);
         });
     }
 
     public function down(): void
     {
         Schema::dropIfExists('larameter_usage');
+        Schema::dropIfExists('larameter_accounts');
     }
 };

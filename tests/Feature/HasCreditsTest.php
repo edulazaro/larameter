@@ -2,40 +2,73 @@
 
 namespace EduLazaro\Larameter\Tests\Feature;
 
-use EduLazaro\Larameter\Tests\Fixtures\Account;
+use EduLazaro\Larameter\Tests\Fixtures\Organization;
 use EduLazaro\Larameter\Tests\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 /**
- * The three-step setup: publish the config, name your plans, add the trait.
+ * The trait is the whole install. If anything here needs an interface, a binding or a
+ * method the host app has to write, the package has failed at the thing it is for.
  */
 class HasCreditsTest extends TestCase
 {
-    public function test_the_trait_is_the_whole_api_most_apps_need(): void
+    use RefreshDatabase;
+
+    protected function setUp(): void
     {
-        config([
-            'larameter.plans.free.credits_monthly' => 400,
-            'larameter.prices.create_form' => 5,
+        parent::setUp();
+
+        config()->set('larameter.plans', [
+            'free' => ['credits_monthly' => 10],
+            'pro' => ['credits_monthly' => 500],
         ]);
-
-        $account = Account::create();
-
-        $this->assertSame(400, $account->creditBudget());
-        $this->assertTrue($account->hasCredits());
-
-        $account->chargeCredits('create_form');
-
-        $this->assertSame(95, $account->creditsRemaining(), 'the weekly brake, 100 minus 5');
-        $this->assertCount(1, $account->usageRecords);
+        config()->set('larameter.default_plan', 'free');
+        config()->set('larameter.prices', ['create_form' => 3]);
     }
 
-    public function test_the_plan_comes_from_the_model_and_falls_back(): void
+    public function test_the_trait_is_the_whole_api_most_apps_need(): void
     {
-        config(['larameter.default_plan' => 'free']);
+        $org = Organization::create(['name' => 'Acme']);
 
-        $account = Account::create();
-        $this->assertSame('free', $account->creditPlanKey());
+        $this->assertTrue($org->hasCredits());
+        $this->assertSame(10, $org->creditBudget());
+        $this->assertSame(10, $org->creditsRemaining());
 
-        $account->plan = 'pro';
-        $this->assertSame('pro', $account->creditPlanKey());
+        $org->chargeCredits('create_form');
+
+        $this->assertSame(7, $org->creditsRemaining());
+        $this->assertSame(1, $org->creditUsage()->count());
+
+        $org->chargeCredits('create_form', credits: 7);
+
+        $this->assertSame(0, $org->creditsRemaining());
+        $this->assertFalse($org->hasCredits());
+    }
+
+    public function test_the_plan_is_set_from_wherever_the_app_learns_it_changed(): void
+    {
+        $org = Organization::create(['name' => 'Acme']);
+
+        $this->assertSame('free', $org->creditPlan());
+
+        // From a Cashier subscription observer, a grant, an admin action. The package
+        // cannot know, so it does not try.
+        $org->setCreditPlan('pro');
+
+        $this->assertSame('pro', $org->creditPlan());
+        $this->assertSame(500, $org->creditBudget());
+
+        $org->setCreditPlan(null);
+
+        $this->assertSame(0, $org->creditBudget());
+    }
+
+    public function test_buying_credits_adds_to_a_bucket_the_plan_cannot_touch(): void
+    {
+        $org = Organization::create(['name' => 'Acme']);
+
+        $org->addCredits(1_000);
+
+        $this->assertSame(1_010, $org->creditsRemaining());
     }
 }

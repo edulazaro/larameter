@@ -2,8 +2,8 @@
 
 namespace EduLazaro\Larameter;
 
-use EduLazaro\Larameter\Contracts\ProvidesPlanLimits;
-use EduLazaro\Larameter\Plans\ConfigPlanLimits;
+use EduLazaro\Larameter\Models\UsageRecord;
+use EduLazaro\Larameter\Observers\UsageRecordObserver;
 use Illuminate\Support\ServiceProvider;
 
 class LarameterServiceProvider extends ServiceProvider
@@ -12,24 +12,21 @@ class LarameterServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/larameter.php', 'larameter');
 
-        // Plans come from config unless you say otherwise. Nobody should have to
-        // implement an interface to charge for creating a form.
-        $this->app->singleton(ProvidesPlanLimits::class, function ($app) {
-            $class = $app['config']['larameter.plan_limits'] ?? null;
-
-            return $class ? $app->make($class) : new ConfigPlanLimits();
-        });
-
         // SCOPED, not singleton. The meter memoises hasCreditsMemoized(), and a queue
-        // worker keeps singletons alive between jobs: an account that ran out would go
-        // on spending for as long as that worker lived. Scoped bindings are flushed
-        // between jobs and between Octane requests, which is exactly the lifetime the
-        // memo is meant to have.
+        // worker keeps singletons alive between jobs: an account that ran out would go on
+        // spending for as long as that worker lived. Scoped bindings are flushed between
+        // jobs and between Octane requests, which is exactly the lifetime the memo is
+        // meant to have.
         $this->app->scoped(CreditMeter::class);
     }
 
     public function boot(): void
     {
+        // Every usage row moves the balance, whoever wrote it. Keeping this out of
+        // CreditMeter means a backfill or a console command cannot record consumption
+        // that nobody is charged for.
+        UsageRecord::observe(UsageRecordObserver::class);
+
         $this->publishes([
             __DIR__ . '/../config/larameter.php' => config_path('larameter.php'),
         ], 'larameter-config');

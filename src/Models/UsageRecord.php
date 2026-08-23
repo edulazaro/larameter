@@ -3,25 +3,21 @@
 namespace EduLazaro\Larameter\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
- * One line of consumption. Append-only.
+ * One line of consumption. Append-only, and never the source of the balance.
  *
- * The balance is not stored anywhere: it is this table summed over a window and compared
- * against the plan. That is a deliberate trade. A stored balance is one number that can
- * drift out of step with the rows that produced it, and when it does you cannot tell
- * which is wrong. Summing is slower and always right, and at the volumes one account
- * produces the index carries it.
- *
- * If you outgrow that, the fix is a periodic rollup row, not a mutable balance.
+ * The balance lives on the Account. This table is what you audit with, invoice from and
+ * reconcile against when the two disagree. A consequence worth knowing: deleting rows
+ * here does NOT hand anybody their credits back, which is the right way round.
  */
 class UsageRecord extends Model
 {
     protected $table = 'larameter_usage';
 
     protected $fillable = [
-        'account_type',
         'account_id',
         'actor_type',
         'actor_id',
@@ -44,9 +40,9 @@ class UsageRecord extends Model
         'metadata' => 'array',
     ];
 
-    public function account(): MorphTo
+    public function account(): BelongsTo
     {
-        return $this->morphTo();
+        return $this->belongsTo(Account::class, 'account_id');
     }
 
     /** Who triggered it, when there was somebody. Null for scheduled work. */

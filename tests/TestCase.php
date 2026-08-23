@@ -3,6 +3,7 @@
 namespace EduLazaro\Larameter\Tests;
 
 use EduLazaro\Larameter\LarameterServiceProvider;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -24,10 +25,20 @@ abstract class TestCase extends Orchestra
         $migration = require __DIR__ . '/../database/migrations/create_larameter_tables.php.stub';
         $migration->up();
 
-        Schema::create('accounts', function ($table) {
+        // Whatever the host app bills. Note it carries NO plan column: the plan lives on
+        // the larameter account, so installing the package does not mean a migration on
+        // a table you already had.
+        Schema::create('organizations', function ($table) {
             $table->id();
-            $table->string('plan')->nullable();
+            $table->string('name')->nullable();
             $table->timestamps();
         });
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 }

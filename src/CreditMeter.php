@@ -2,45 +2,41 @@
 
 namespace EduLazaro\Larameter;
 
-use EduLazaro\Larameter\Contracts\ProvidesPlanLimits;
+use EduLazaro\Larameter\Models\Account;
 use EduLazaro\Larameter\Models\UsageRecord;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * Charges an account and says whether it may spend more.
  *
- * Two windows, and the tighter one wins. The monthly budget is what you sell; the weekly
- * is a brake, defaulting to a quarter of it. Without the second, an account can burn a
- * month of allowance in a bad afternoon and spend the rest of it locked out, which reads
- * as the product being broken rather than as the plan being small.
+ * Nothing here computes a balance: it writes a usage row, and the observer on that row
+ * moves the account. Reading the balance is one row, not an aggregate.
+ *
+ * Most apps never touch this class. Put the HasCredits trait on whatever you bill and
+ * call the methods it gives you.
  */
 class CreditMeter
 {
     /**
-     * Memo of hasCredits(), for as long as this instance lives.
+     * Memo of hasCreditsMemoized(), for as long as this instance lives.
      *
-     * The balance is two aggregates, and an agentic loop asks before every iteration:
-     * without this that is a dozen queries on the hot path of one answer.
+     * It is NOT invalidated on charging, deliberately. Otherwise an agentic loop would
+     * re-read on every iteration, since every iteration records. The consequence is that
+     * a turn which starts with credit finishes even if it runs out midway, which is what
+     * you want: stopping halfway leaves the user a half-built answer, and the overshoot
+     * is bounded to one turn.
      *
-     * It is NOT invalidated on recording, deliberately. Otherwise every iteration would
-     * query again, since every iteration records. The consequence is that a turn which
-     * starts with credit finishes even if it runs out midway, which is what you want:
-     * stopping halfway leaves the user a half-built answer, and the overshoot is bounded
-     * to a single turn.
+     * See LarameterServiceProvider for why this binding is scoped and not a singleton.
      *
      * @var array<string, bool>
      */
     private array $memo = [];
 
-    public function __construct(
-        protected ProvidesPlanLimits $plan,
-    ) {}
-
     // ─── Charging ───────────────────────────────────────────────────
 
-    /** A fixed-price action: creating a form, sending an email, a minute of video. */
+    /** A fixed-price action: creating a form, sending an email, running an export. */
     public function charge(
-        Model $account,
+        Model $meterable,
         string $operation,
         ?Model $actor = null,
         ?Model $subject = null,
@@ -48,8 +44,7 @@ class CreditMeter
         array $metadata = [],
     ): UsageRecord {
         return UsageRecord::create([
-            'account_type' => $account->getMorphClass(),
-            'account_id' => $account->getKey(),
+            'account_id' => $this->account($meterable)->getKey(),
             'actor_type' => $actor?->getMorphClass(),
             'actor_id' => $actor?->getKey(),
             'subject_type' => $subject?->getMorphClass(),
@@ -61,9 +56,15 @@ class CreditMeter
         ]);
     }
 
-    /** Metered consumption, priced per unit in and out. Tokens, minutes, pages. */
+    /**
+     * Metered consumption, priced per unit in and out.
+     *
+     * $operation is what gets priced: for an LLM call that is the model name, so the rate
+     * table reads the way the providers publish theirs. $unit is only a label on the row,
+     * so a bill can tell tokens from minutes.
+     */
     public function meter(
-        Model $account,
+        Model $meterable,
         string $operation,
         string $unit,
         int $quantityIn,
@@ -72,12 +73,14 @@ class CreditMeter
         ?Model $subject = null,
         array $metadata = [],
     ): UsageRecord {
-        $rates = config("larameter.rates.{$unit}") ?? [];
+        // Indexed directly, NOT through dot notation: a name with a dot in it (gpt-5.4)
+        // would be split by config() and fall through to the wildcard, which undercharges
+        // and only shows up on the provider's invoice.
+        $rates = config('larameter.rates') ?? [];
         $rate = $rates[$operation] ?? $rates['*'] ?? null;
 
         return UsageRecord::create([
-            'account_type' => $account->getMorphClass(),
-            'account_id' => $account->getKey(),
+            'account_id' => $this->account($meterable)->getKey(),
             'actor_type' => $actor?->getMorphClass(),
             'actor_id' => $actor?->getKey(),
             'subject_type' => $subject?->getMorphClass(),
@@ -95,79 +98,40 @@ class CreditMeter
     /** What a fixed action costs. Unpriced actions are free rather than a guess. */
     public function priceOf(string $operation): int
     {
-        return (int) config("larameter.prices.{$operation}", 0);
+        $prices = config('larameter.prices') ?? [];
+
+        return (int) ($prices[$operation] ?? 0);
     }
 
     // ─── Balance ────────────────────────────────────────────────────
 
-    public function budget(Model $account): int
+    public function account(Model $meterable): Account
     {
-        return $this->plan->limitFor($account, 'credits_monthly');
+        return $meterable instanceof Account ? $meterable : Account::for($meterable);
     }
 
-    public function weeklyBudget(Model $account): int
+    /** What the plan grants per period, before anything bought on top. */
+    public function budget(Model $meterable): int
     {
-        $monthly = $this->budget($account);
-
-        if ($monthly < 0) {
-            return $monthly;
-        }
-
-        $share = (float) config('larameter.weekly_share', 0.25);
-
-        return (int) ceil($monthly * $share);
+        return $this->account($meterable)->allowance();
     }
 
-    public function usedSince(Model $account, \DateTimeInterface $since): int
+    public function remaining(Model $meterable): int
     {
-        return (int) UsageRecord::where('account_type', $account->getMorphClass())
-            ->where('account_id', $account->getKey())
-            ->where('created_at', '>=', $since)
-            ->sum('credits');
+        return $this->account($meterable)->remaining();
     }
 
-    /** Whatever is tighter, the month or the week. */
-    public function remaining(Model $account): int
+    public function hasCredits(Model $meterable, int $credits = 1): bool
     {
-        $monthly = $this->budget($account);
-
-        if ($monthly < 0) {
-            return PHP_INT_MAX;
-        }
-
-        return min(
-            max(0, $monthly - $this->usedSince($account, now()->startOfMonth())),
-            max(0, $this->weeklyBudget($account) - $this->usedSince($account, now()->startOfWeek())),
-        );
-    }
-
-    public function hasCredits(Model $account, int $credits = 1): bool
-    {
-        return $this->remaining($account) >= $credits;
+        return $this->account($meterable)->hasCredits($credits);
     }
 
     /** Same answer, cached for this instance. See the note on $memo. */
-    public function hasCreditsMemoized(Model $account, int $credits = 1): bool
+    public function hasCreditsMemoized(Model $meterable, int $credits = 1): bool
     {
-        $key = $account->getMorphClass() . ':' . $account->getKey() . ':' . $credits;
+        $key = $meterable->getMorphClass() . ':' . $meterable->getKey() . ':' . $credits;
 
-        return $this->memo[$key] ??= $this->hasCredits($account, $credits);
-    }
-
-    /** Which ceiling was hit, for telling the user something useful. */
-    public function limitHit(Model $account): ?string
-    {
-        if ($this->budget($account) < 0) {
-            return null;
-        }
-
-        if ($this->usedSince($account, now()->startOfWeek()) >= $this->weeklyBudget($account)) {
-            return 'weekly';
-        }
-
-        return $this->usedSince($account, now()->startOfMonth()) >= $this->budget($account)
-            ? 'monthly'
-            : null;
+        return $this->memo[$key] ??= $this->hasCredits($meterable, $credits);
     }
 
     // ─── Quantity caps ──────────────────────────────────────────────
@@ -176,9 +140,9 @@ class CreditMeter
      * How many more of something an account may create. A different question from
      * credits: seats and projects are ceilings, not spend.
      */
-    public function canCreate(Model $account, string $resource, int $current): bool
+    public function canCreate(Model $meterable, string $resource, int $current): bool
     {
-        $limit = $this->plan->limitFor($account, $resource);
+        $limit = Plans::limit($this->account($meterable)->plan_key, $resource);
 
         return $limit < 0 || $current < $limit;
     }

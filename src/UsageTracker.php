@@ -190,7 +190,7 @@ class UsageTracker
     }
 
     /**
-     * Credits for a quantity, at the given rate.
+     * Credits for a quantity, at the given rate. Rates are per million units.
      *
      * @param array<string, int>|null $rate
      * @param int $in
@@ -203,10 +203,8 @@ class UsageTracker
             return max(1, (int) ceil(($in + $out) / (int) config('larameter.fallback_units_per_credit', 100)));
         }
 
-        $per = (int) ($rate['per'] ?? 1_000_000);
-
-        $credits = ($in / $per) * (float) ($rate['input'] ?? 0)
-            + ($out / $per) * (float) ($rate['output'] ?? 0);
+        $credits = ($in / 1_000_000) * (float) ($rate['input'] ?? 0)
+            + ($out / 1_000_000) * (float) ($rate['output'] ?? 0);
 
         return max(1, (int) ceil($credits));
     }

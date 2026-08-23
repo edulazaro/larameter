@@ -50,7 +50,7 @@ class UsageTrackerTest extends TestCase
     public function test_metered_units_are_priced_by_operation(): void
     {
         config()->set('larameter.rates', [
-            'gpt-4o' => ['input' => 25_000, 'output' => 100_000, 'per' => 1_000_000],
+            'gpt-4o' => ['input' => 25_000, 'output' => 100_000],
         ]);
 
         $record = $this->meter->meter($this->org(), 'gpt-4o', 'token', 1_000_000, 1_000_000);
@@ -65,8 +65,8 @@ class UsageTrackerTest extends TestCase
         // finds nothing, falls through to the wildcard and undercharges. It only ever
         // shows up on the provider's invoice.
         config()->set('larameter.rates', [
-            'gpt-5.4' => ['input' => 1_000_000, 'output' => 1_000_000, 'per' => 1_000_000],
-            '*' => ['input' => 100, 'output' => 100, 'per' => 1_000_000],
+            'gpt-5.4' => ['input' => 1_000_000, 'output' => 1_000_000],
+            '*' => ['input' => 100, 'output' => 100],
         ]);
 
         $record = $this->meter->meter($this->org(), 'gpt-5.4', 'token', 1_000_000);

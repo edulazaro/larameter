@@ -159,9 +159,9 @@ return [
     | model call that is the model, so this table reads the way the providers publish
     | theirs.
     |
-    | `input` and `output` are the credits for what goes in and what comes back, and
-    | `per` is how many units those figures refer to. Providers quote per million tokens,
-    | so write the credits you charge for a million.
+    | `input` and `output` are the credits for a MILLION units in and a million out, which
+    | is how providers quote tokens. Anything not priced by the million is a fixed price,
+    | so it belongs in `prices` above.
     |
     | '*' is the fallback for anything not listed.
     |
@@ -171,9 +171,9 @@ return [
     */
 
     'rates' => [
-        // 'gpt-4o'      => ['input' => 25_000, 'output' => 100_000, 'per' => 1_000_000],
-        // 'gpt-4o-mini' => ['input' => 1_500,  'output' => 6_000,   'per' => 1_000_000],
-        // '*'           => ['input' => 50_000, 'output' => 150_000, 'per' => 1_000_000],
+        // 'gpt-4o'      => ['input' => 25_000, 'output' => 100_000],
+        // 'gpt-4o-mini' => ['input' => 1_500,  'output' => 6_000],
+        // '*'           => ['input' => 50_000, 'output' => 150_000],
     ],
 
     // What an unpriced unit costs, so metering an unknown model is not free. The gap would

@@ -279,7 +279,7 @@ out of session, you buy more usage, you carry on, and your week has not moved me
 Everything is expressed in credits, including the rates:
 
     'rates' => [
-        'gpt-4o' => ['input' => 25_000, 'output' => 100_000, 'per' => 1_000_000],
+        'gpt-4o' => ['input' => 25_000, 'output' => 100_000],
     ],
 
 25,000 credits per million input tokens. What a credit is worth in money is your business

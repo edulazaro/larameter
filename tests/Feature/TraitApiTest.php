@@ -30,7 +30,7 @@ class TraitApiTest extends TestCase
         config()->set('larameter.default_plan', 'free');
         config()->set('larameter.override_column', null);
         config()->set('larameter.rates', [
-            'gpt-4o' => ['input' => 25_000, 'output' => 100_000, 'per' => 1_000_000],
+            'gpt-4o' => ['input' => 25_000, 'output' => 100_000],
         ]);
 
         return Organization::create(['name' => 'Acme']);

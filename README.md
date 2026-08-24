@@ -2,6 +2,14 @@
 
 # Larameter
 
+<p align="center">
+    <a href="https://github.com/edulazaro/larameter/actions/workflows/tests.yml"><img src="https://github.com/edulazaro/larameter/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+    <a href="https://packagist.org/packages/edulazaro/larameter"><img src="https://img.shields.io/packagist/v/edulazaro/larameter" alt="Latest Stable Version"></a>
+    <a href="https://packagist.org/packages/edulazaro/larameter"><img src="https://img.shields.io/packagist/dt/edulazaro/larameter" alt="Total Downloads"></a>
+    <a href="https://packagist.org/packages/edulazaro/larameter"><img src="https://img.shields.io/packagist/php-v/edulazaro/larameter" alt="PHP Version"></a>
+    <a href="https://github.com/edulazaro/larameter/blob/main/LICENSE.md"><img src="https://img.shields.io/packagist/l/edulazaro/larameter" alt="License"></a>
+</p>
+
 Credit metering and plans for Laravel. Sell an allowance per session and per week, sell
 top-ups on the side, charge per action or per unit consumed, and stop a call before it
 spends what an account no longer has.

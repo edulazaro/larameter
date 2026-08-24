@@ -74,6 +74,7 @@ balance would burn the session before a word was typed. That holds for reading t
         $window->used();         // 12_000
         $window->remaining();    // 500
         $window->percentUsed();  // 96.0
+        $window->startedAt();    // the Monday just gone, or null if none is running
         $window->endsAt();       // the Monday coming, or null if none is running
     }
 
@@ -111,13 +112,14 @@ Three steps. No interface to implement, nothing to bind, no column on your table
     php artisan vendor:publish --tag=larameter-config
     php artisan vendor:publish --tag=larameter-migrations
 
-Name your plans in the config:
+Name your plans in the config, one allowance figure each, which every window then takes
+its share of:
 
     'plans' => [
-        'free' => ['credits' => ['session' => 100, 'week' => 500, 'month' => 1_000]],
+        'free' => ['credits_monthly' => 1_000],
         'pro'  => [
-            'credits' => ['session' => 1_000, 'week' => 5_000, 'month' => 10_000],
-            'limits'  => ['seats' => 25],
+            'credits_monthly' => 50_000,
+            'limits' => ['members' => 25],
         ],
     ],
 
@@ -136,7 +138,7 @@ Done. The account row appears the first time you touch it.
     $org->credits()->remaining();
     $org->credits()->resetsAt();
 
-**Three doors and no more.** `plan()` answers what was bought, `usage()` what has been
+**Three doors and no more.** `plan()` answers what was bought, `credits()` what has been
 spent, `quota()` how many of something may exist. A trait goes into a class you did not
 write, and every name it claims there is a name that class can no longer use: this one
 brought a `meters()` once, which is a fatal error on any model that also uses Cashier.
@@ -147,8 +149,8 @@ Plans are optional. An account with no plan is valid and spends purchased credit
 which is what you want if you sell bundles rather than subscriptions.
 
 **Define them once, wherever they already live.** Point the package at your own file and
-it reads `credits`, `limits` and `features`, ignoring the rest, so the commercial half of
-a plan stays next to the metered half:
+it reads the allowance figure, `limits` and `features`, ignoring the rest, so the
+commercial half of a plan stays next to the metered half:
 
     // config/larameter.php
     'plans_from' => 'plans.tiers',
@@ -160,11 +162,15 @@ a plan stays next to the metered half:
             'price' => 59_00,
             'stripe_price_id' => env('STRIPE_PRICE_PRO'),
 
-            'credits'  => ['week' => 12_500, 'month' => 50_000],
-            'limits'   => ['members' => 1, 'cases' => -1],
-            'features' => ['api_access' => false, 'own_cases' => true],
+            'credits_monthly' => 50_000,
+            'limits'          => ['members' => 1, 'cases' => -1],
+            'features'        => ['api_access' => false, 'own_cases' => true],
         ],
     ],
+
+`credits_key` names the key holding that figure, `credits_monthly` by default, and it may
+name a nested one (`'limits.credits_monthly'`) for a plans file that already had it
+somewhere.
 
 **Which plan an account is on is worked out, not stored.** Add `HasPlans` and it is
 resolved by a list of providers, tried in order, first answer wins:
@@ -172,7 +178,7 @@ resolved by a list of providers, tried in order, first answer wins:
     'plan_providers' => [
         PlanProviders\ForcedPlanProvider::class,    // a column of yours, set by hand
         PlanProviders\CashierPlanProvider::class,   // the subscription, by price id
-        PlanProviders\StoredPlanProvider::class,    // usage()->setPlan(), then the default
+        PlanProviders\StoredPlanProvider::class,    // credits()->setPlan(), then the default
     ],
 
 **The order is the policy.** Forced before Cashier means a plan somebody set by hand for a
@@ -213,12 +219,14 @@ upgrade and downgrade in the same afternoon.
 
 Three defaults that read in different directions, on purpose:
 
-- no `credits` at all means **no allowance**. Credits are what you sell, so a plan that
-  does not mention them does not include any.
-- a window **missing** from a `credits` map that exists **does not constrain** that plan.
-  Saying `'week' => 2000` and nothing else means limited weekly, session free.
+- no allowance figure at all means **no allowance**. Credits are what you sell, so a plan
+  that does not mention them does not include any.
+- a `features` key you never listed is **off**. A feature is something a plan unlocks, so
+  one nobody wrote down was never granted.
 - a `limits` key you never listed is **unlimited**. These are restrictions, and a package
   you just installed should not refuse to create users on its own opinion.
+
+`-1` is unlimited anywhere, which is not the same as `0`.
 
 ## Ceilings
 
@@ -231,7 +239,7 @@ what exists, and the plan says how many at once. Those are meters.
 
     class MemberMeter extends Meter
     {
-        protected string $key = 'members';
+        public string $handle = 'members';
 
         public function count(): int
         {
@@ -248,7 +256,7 @@ List it on the model:
         protected array $meters = [MemberMeter::class, CaseMeter::class];
     }
 
-A plain list and not a map, because a meter already knows its own key. Or with the
+A plain list and not a map, because a meter already knows its own handle. Or with the
 attribute, the same shape larakeep uses for keepers:
 
     #[MeteredBy(MemberMeter::class)]
@@ -275,7 +283,7 @@ this came from had a one-seat plan, showed it on the usage screen, and never che
 when inviting: the cap was enforced for cases and forgotten for members, because enforcing
 it meant every caller had to remember to count first.
 
-`label()` is optional and derives from the key. Override it to translate; the package
+`label()` is optional and derives from the handle. Override it to translate; the package
 never sees the string and depends on no translation package.
 
 A resource with no meter is **unlimited**. The other way round, a package you just
@@ -328,34 +336,29 @@ hand out credits that never reach the balance.
 
 ## Asking
 
-    $org->credits()->in('weekly')         one window: allowance, used, remaining, endsAt
-    $org->credits()->windows()            all of them, which is a usage screen
-    $org->credits()->allows()             may it spend one credit?
-    $org->credits()->allows(250)          may it spend 250?
-    $org->credits()->allows('email')      enough for what that action costs?
-    $org->credits()->price('email')       what it costs
-    $org->credits()->remaining()          headroom plus what was bought
-    $org->credits()->headroom()           the plan only, tightest window
-    $org->credits()->allowanceIn('week')  what the plan grants there
-    $org->credits()->resetsAt()           when it can spend again, or null
-    $org->plan()->handle                'pro', or '' when there is none
+    $org->credits()->in('weekly')           one window: allowance, used, remaining, endsAt
+    $org->credits()->windows()              all of them, which is a usage screen
+    $org->credits()->allows()               may it spend one credit?
+    $org->credits()->allows(250)            may it spend 250?
+    $org->credits()->allows('email')        enough for what that action costs?
+    $org->credits()->price('email')         what it costs
+    $org->credits()->meterPrice(...)        the same for a metered call, uncharged
+    $org->credits()->remaining()            headroom plus what was bought
+    $org->credits()->headroom()             the plan only, tightest window
+    $org->credits()->allowanceIn('weekly')  what the plan grants there
+    $org->credits()->resetsAt()             when it can spend again, or null
+    $org->plan()->handle                    'pro', or '' when there is none
 
 `allows()` takes a number of credits or the name of an action, because charging does
 not refuse: an account with nothing left records the overdraft rather than leaving a
 turn half done. If asking first is awkward, nobody asks, and an unchecked ceiling is
 the bug this package exists to stop.
 
-`UsageTracker::hasCreditsMemoized()` answers once per instance, for hot paths that ask
-repeatedly. It does not notice spending that happens afterwards, deliberately: a turn that
+`app(UsageTracker::class)->hasCreditsMemoized($org)` answers once per instance, for hot
+paths that ask repeatedly. It does not notice spending that happens afterwards, deliberately: a turn that
 starts with credit finishes, and the overshoot is bounded to one turn. The binding is
 `scoped`, not a singleton, so a queue worker does not keep one turn's answer alive across
 every job it goes on to process.
-
-## With laragents
-
-`laragents` defines a `UsageRecorder` contract and calls it after every model call. Point
-`laragents.usage_recorder` at `'larameter'` and the two are wired together with no adapter
-to write. Neither package requires the other.
 
 ## License
 

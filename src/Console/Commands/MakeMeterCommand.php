@@ -37,10 +37,10 @@ class MakeMeterCommand extends GeneratorCommand
      * A meter only means anything next to the model it counts on, and an app of any size
      * ends up with several models that have caps. Flat, App\Meters would mix the seats of
      * an organisation with the members of a case and you would be reading class names to
-     * tell them apart.     *
+     * tell them apart.
+     *
      * @param string $rootNamespace
      * @return string
-
      */
     protected function getDefaultNamespace($rootNamespace): string
     {

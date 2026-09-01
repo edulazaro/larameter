@@ -39,13 +39,26 @@ class LarameterServiceProvider extends ServiceProvider
             __DIR__ . '/../config/larameter.php' => config_path('larameter.php'),
         ], 'larameter-config');
 
+        // The tables are yours: published once, and from then on in your repository where
+        // you can read them, edit them and see them in a diff.
         $this->publishes([
             __DIR__ . '/../database/migrations/create_larameter_tables.php.stub' => database_path(
                 'migrations/' . date('Y_m_d_His') . '_create_larameter_tables.php',
             ),
-            __DIR__ . '/../database/migrations/add_credit_expiry_to_larameter_deposits.php.stub' => database_path(
-                'migrations/' . date('Y_m_d_His', time() + 1) . '_add_credit_expiry_to_larameter_deposits.php',
-            ),
         ], 'larameter-migrations');
+
+        // Changes to those tables are NOT, and run themselves on the next `migrate`.
+        //
+        // The split is deliberate. Publishing a schema change means an upgrade has a step
+        // somebody has to remember, and somebody will skip it: composer brings code that
+        // reads columns their database does not have yet, and the application goes down on
+        // the first request that reads a balance. There is no version of that failure that
+        // is the application author's fault.
+        //
+        // Each one guards on what it is about to change, so running against a database
+        // that already has it is a no-op rather than an error. That is what lets a fresh
+        // install take the columns from create_larameter_tables and still pass through
+        // here without complaining.
+        $this->loadMigrationsFrom(__DIR__ . '/../database/auto');
     }
 }

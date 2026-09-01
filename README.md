@@ -325,6 +325,19 @@ does not cost the account holder something they paid for.
 A negative deposit is not a lot and is never spent out of. It is a refund or a correction,
 so it comes out of the lots the way spending does.
 
+#### Upgrading
+
+    composer update edulazaro/larameter
+    php artisan migrate
+
+Nothing to publish. The columns come with a migration the package runs itself, guarded so
+that a database which already has them is left alone, which is why a fresh install passes
+through it without complaining.
+
+Your tables stay yours: `create_larameter_tables` is still published once and lives in
+your repository. It is *changes* to them that are not, because publishing a schema change
+means an upgrade has a step somebody has to remember, and somebody will skip it.
+
 #### Upgrading costs nothing
 
 `purchased_credits` on the account is now a **closed bucket**: it holds what was there

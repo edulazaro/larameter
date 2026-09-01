@@ -7,6 +7,14 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Lets a deposit carry an expiry date, and become a lot when it does.
  *
+ * Run by the package, not published into your application. Upgrading is `composer update`
+ * and `php artisan migrate`, with nothing to remember and nothing to copy, because a step
+ * somebody has to remember is a step somebody will skip, and skipping this one takes the
+ * balance down on the first request that reads it.
+ *
+ * Guarded, so it is safe in both directions: a fresh install already has the columns from
+ * create_larameter_tables and this finds nothing to do.
+ *
  * Nothing is migrated and nothing is recalculated, which is the point. One rule decides
  * what a row is: with a date it is a lot, without one it is history and its credits are
  * in purchased_credits. Every row written before this has a null date, so every one of
@@ -21,6 +29,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('larameter_deposits', 'expires_at')) {
+            return;
+        }
+
         Schema::table('larameter_deposits', function (Blueprint $table) {
             // Null is never, and it is the default, so a caller with no interest in
             // expiry never has to say so. It is also what makes this migration free.
@@ -44,6 +56,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (! Schema::hasColumn('larameter_deposits', 'expires_at')) {
+            return;
+        }
+
         Schema::table('larameter_deposits', function (Blueprint $table) {
             $table->dropIndex(['account_id', 'expires_at']);
             $table->dropColumn(['expires_at', 'consumed']);

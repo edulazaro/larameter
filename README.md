@@ -303,6 +303,43 @@ zero rather than becoming a debt nobody can spend their way out of.
 the part that matters — what they pay for is **not counted against the windows**. You run
 out of session, you buy more usage, you carry on, and your week has not moved meanwhile.
 
+### Credits that expire
+
+    $org->credits()->deposit(5_000, source: $payment, expiresAt: now()->addYear());
+
+Leave it out and they never expire. A lot with no date is still a lot, it simply does not
+die.
+
+**Every deposit is a lot**: an amount that arrived, tracked with its own `consumed`, drawn
+from directly. So a purchase always knows how much of itself is left, and a refund can be
+charged against the purchase it belongs to rather than against a shared number.
+
+Expiry is the `WHERE` clause of the balance, not a job. A lot stops counting the moment
+its date passes, so there is no command to schedule and no window in which the balance is
+wrong because the sweep has not run yet.
+
+**Credits come out of the lot that dies soonest**, oldest first to settle a tie, and lots
+with no date last of all. Spending what would have been lost anyway is the only order that
+does not cost the account holder something they paid for.
+
+A negative deposit is not a lot and is never spent out of. It is a refund or a correction,
+so it comes out of the lots the way spending does.
+
+#### Upgrading costs nothing
+
+`purchased_credits` on the account is now a **closed bucket**: it holds what was there
+before lots existed, it can only drain, and the day it reaches zero it can be dropped
+without anybody noticing. Reading the balance through the model adds it to the live lots.
+
+Nothing is migrated and nothing is recalculated. `consumed` being null is what says "this
+row is not a lot", and `ALTER TABLE` leaves it null on every row you already have, so
+their credits stay in the column exactly where they were. Counting them in both places
+would have doubled every balance; reconstructing which past deposit each past spend came
+out of would have meant guessing over live data on the day of the deploy, because it was
+never recorded.
+
+Spending falls through to the column once the lots are gone, so it does empty.
+
 ## Credits out
 
     $org->credits()->charge('create_form');                  fixed price by name

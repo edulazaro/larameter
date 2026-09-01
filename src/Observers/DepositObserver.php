@@ -7,10 +7,21 @@ use EduLazaro\Larameter\Models\Deposit;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Moves purchased_credits to match the deposit that was just written.
+ * Takes a refund out of the balance. Nothing else needs doing.
  *
- * The column is a cache of this table. Keeping it in an observer means a deposit created
- * by any route at all lands on the balance, and that the two can never be written apart.
+ * A positive deposit is a lot, and a lot IS the credits it added: the balance reads it
+ * where it lies. Moving the column as well would count it twice, once as a row and once
+ * as a number, and every balance in the application would be double.
+ *
+ * So the column never grows again. It holds what was there before lots existed, it can
+ * only drain, and the day it reaches zero it can be dropped.
+ *
+ * A NEGATIVE deposit is a refund or a correction, which is spending wearing a different
+ * hat: out of the lots first, and out of the column for whatever the lots could not
+ * cover.
+ *
+ * Being an observer means a row written by any route at all is handled: a backfill, a
+ * console command, an application writing the deposit itself.
  */
 class DepositObserver
 {
@@ -32,7 +43,23 @@ class DepositObserver
             if (! $account) {
                 return;
             }
-            $account->purchased_credits = max(0, $account->purchased_credits + $deposit->credits);
+            // A positive deposit is already the balance it added. Nothing to move.
+            if ($deposit->credits >= 0) {
+                return;
+            }
+
+            $owed = abs($deposit->credits);
+            $left = $owed - $account->takeFromLots($owed);
+
+            if ($left <= 0) {
+                return;
+            }
+
+            // getAttributes() and not the property: reading the property calls the
+            // accessor, which already counts the lots.
+            $stored = (int) ($account->getAttributes()['purchased_credits'] ?? 0);
+
+            $account->setAttribute('purchased_credits', max(0, $stored - $left));
             $account->save();
         });
     }

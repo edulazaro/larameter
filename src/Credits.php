@@ -253,6 +253,7 @@ class Credits
      * @param Model|null $source
      * @param string|null $note
      * @param array<string, mixed> $metadata
+     * @param \DateTimeInterface|null $expiresAt Null never expires, which is the default.
      * @return Deposit
      */
     public function deposit(
@@ -261,8 +262,9 @@ class Credits
         ?Model $source = null,
         ?string $note = null,
         array $metadata = [],
+        ?\DateTimeInterface $expiresAt = null,
     ): Deposit {
-        return $this->account()->deposit($credits, $reason, $source, $note, $metadata);
+        return $this->account()->deposit($credits, $reason, $source, $note, $metadata, $expiresAt);
     }
 
     /**

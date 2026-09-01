@@ -1,0 +1,52 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Lets a deposit carry an expiry date, and become a lot when it does.
+ *
+ * Nothing is migrated and nothing is recalculated, which is the point. One rule decides
+ * what a row is: with a date it is a lot, without one it is history and its credits are
+ * in purchased_credits. Every row written before this has a null date, so every one of
+ * them is history, the column still holds exactly what it held, and an installation that
+ * never sets a date behaves precisely as it did.
+ *
+ * The alternative was to reconstruct which past deposit each past spend came out of, and
+ * that is not recorded anywhere because until now there was nothing to record it against.
+ * It would have meant guessing, once, over live data, on the day of the deploy.
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('larameter_deposits', function (Blueprint $table) {
+            // Null is never, and it is the default, so a caller with no interest in
+            // expiry never has to say so. It is also what makes this migration free.
+            $table->timestamp('expires_at')->nullable()->after('credits');
+
+            // How much of THIS lot has been spent. `credits` never moves once written;
+            // this is the only mutable part, the way an invoice carries what has been
+            // paid against it without rewriting what it was for.
+            //
+            // NULL means the row is not a lot at all. That is how a deposit written
+            // before lots existed keeps its meaning: its credits are in the account's
+            // purchased_credits and always were, so counting it here too would double
+            // the balance. ALTER TABLE leaves it null on its own, which is exactly why
+            // the upgrade touches no data.
+            $table->unsignedBigInteger('consumed')->nullable()->after('expires_at');
+
+            // The balance query and the spending order share this one.
+            $table->index(['account_id', 'expires_at']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('larameter_deposits', function (Blueprint $table) {
+            $table->dropIndex(['account_id', 'expires_at']);
+            $table->dropColumn(['expires_at', 'consumed']);
+        });
+    }
+};

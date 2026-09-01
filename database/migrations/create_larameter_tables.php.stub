@@ -38,6 +38,10 @@ return new class extends Migration
             //
             // A cache of the deposits below, minus what the plan did not cover. Kept on
             // the row so reading a balance is one row and not two aggregates.
+            // Credits that do NOT expire. The ones that do live in larameter_deposits as
+            // lots, and reading this through the model adds the two: they never overlap,
+            // because a deposit goes to one or the other depending on whether it carries
+            // a date.
             $table->unsignedBigInteger('purchased_credits')->default(0);
 
             $table->timestamps();
@@ -89,7 +93,31 @@ return new class extends Migration
 
             // Signed, so an adjustment downwards is the same kind of row as a purchase
             // and the history reads in one direction.
+            //
+            // A row WITH an expires_at is a lot, drawn from directly. Without one it is
+            // history, and its credits went to purchased_credits on the account. A
+            // negative row is neither: it is a refund, charged against the lots first and
+            // the column after, the way spending is.
             $table->bigInteger('credits');
+
+            // When this lot dies. Null is never, and it is the default, so a caller with
+            // no interest in expiry never has to say so.
+            //
+            // Expiry works by being in the WHERE clause of the balance, not by a command
+            // that sweeps: a lot stops counting the moment the date passes, so there is
+            // no window in which the balance is wrong because the sweep has not run.
+            $table->timestamp('expires_at')->nullable();
+
+            // How much of THIS lot has been spent. `credits` never moves once written;
+            // this is the only mutable part, the way an invoice carries what has been
+            // paid against it without rewriting what it was for.
+            //
+            // NULL means the row is not a lot at all. That is how a deposit written
+            // before lots existed keeps its meaning: its credits are in the account's
+            // purchased_credits and always were, so counting it here too would double
+            // the balance. ALTER TABLE leaves it null on its own, which is exactly why
+            // the upgrade touches no data.
+            $table->unsignedBigInteger('consumed')->nullable();
 
             // purchase | gift | refund | adjustment, or anything you invent. A free
             // string, because a package should not have to ship a migration every time
@@ -105,6 +133,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['account_id', 'created_at']);
+
+            // The order credits come out in, and the balance query, share this one.
+            $table->index(['account_id', 'expires_at']);
         });
 
         /*

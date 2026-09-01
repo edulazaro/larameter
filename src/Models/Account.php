@@ -25,6 +25,21 @@ class Account extends Model
 {
     protected $table = 'larameter_accounts';
 
+    /**
+     * The lots come with the account, because the balance is now made of them.
+     *
+     * Without this, `with('meterAccount')` in a listing preloads everything except the
+     * one thing a listing actually shows, and reading fifty balances is fifty queries
+     * hiding inside a property read. With it, it is one more query for the whole page.
+     *
+     * The cost is real but small: deposits are purchases, gifts and corrections, so an
+     * account accumulates tens of them over years, not thousands. Usage is the table that
+     * grows, and usage is not loaded here.
+     *
+     * @var list<string>
+     */
+    protected $with = ['deposits'];
+
     protected $fillable = [
         'meterable_type',
         'meterable_id',
@@ -165,6 +180,47 @@ class Account extends Model
     }
 
     /**
+     * Purchased credits that are still alive: what is in the column, plus the live lots.
+     *
+     * Two buckets, and they cannot overlap. Everything written from here on is a lot;
+     * the column holds only what was there before lots existed, and it can never grow
+     * again. So this adds rather than double counts, and an installation that upgrades
+     * without touching a thing reads exactly the number it read before.
+     *
+     * An accessor over the column of the same name, so reading it through the model picks
+     * up the lots without anybody having to remember to ask a second way.
+     *
+     * Preloaded deposits win over a query, so a listing that preloads the account reads
+     * fifty balances without fifty round trips. Without that, an accessor that always sums
+     * is an N+1 hiding inside a property read, which is worse than the column it extends.
+     *
+     * Deliberately not memoised beyond that. A cached copy that nobody invalidates when a
+     * lot expires is exactly the bug expiry dates exist to avoid, and the sum is small and
+     * indexed.
+     *
+     * @return int
+     */
+    public function getPurchasedCreditsAttribute(): int
+    {
+        $stored = (int) ($this->getAttributes()['purchased_credits'] ?? 0);
+
+        if (! $this->exists) {
+            return $stored;
+        }
+
+        if ($this->relationLoaded('deposits')) {
+            return $stored + (int) $this->deposits
+                ->filter(fn (Deposit $d) => $d->isAlive())
+                ->sum(fn (Deposit $d) => $d->left());
+        }
+
+        return $stored + (int) Deposit::query()
+            ->where('account_id', $this->getKey())
+            ->alive()
+            ->sum(DB::raw('credits - consumed'));
+    }
+
+    /**
      * Plan allowance left, plus anything purchased.
      *
      * @return int
@@ -261,18 +317,79 @@ class Account extends Model
 
                 $locked->unsetRelation('windows');
             }
-            $fromPurchased = min($overflow, $locked->purchased_credits);
+            // Lots first, soonest to die, and only then the column. Spending what would
+            // have been lost anyway is the only order that does not cost the account
+            // holder something they paid for, and what sits in the column has no date
+            // either, so it can wait.
+            $fromPurchased = $locked->takeFromLots($overflow);
 
-            if ($fromPurchased > 0) {
-                $locked->purchased_credits -= $fromPurchased;
+            $fromColumn = min(
+                $overflow - $fromPurchased,
+                $stored = (int) ($locked->getAttributes()['purchased_credits'] ?? 0),
+            );
+
+            if ($fromColumn > 0) {
+                // Read raw for the same reason the observer does: the property would call
+                // the accessor, which already counts the lots.
+                $locked->setAttribute('purchased_credits', max(0, $stored - $fromColumn));
                 $locked->save();
             }
+
+            $fromPurchased += $fromColumn;
 
             $this->setRawAttributes($locked->getAttributes(), true);
             $this->unsetRelation('windows');
 
             return ['plan' => $fromPlan, 'purchased' => $fromPurchased];
         });
+    }
+
+    /**
+     * Draws credits out of the lots, soonest to die first.
+     *
+     * Returns what it could actually take, which is less than asked for when the account
+     * overdrew. That shortfall is what keeps an overdraft visible instead of silently
+     * rounding up to the balance.
+     *
+     * Public because a refund arrives as a negative deposit rather than as spending, and
+     * the observer that sees it has to charge it against the lots the same way.
+     *
+     * @param int $credits
+     * @return int
+     */
+    public function takeFromLots(int $credits): int
+    {
+        if ($credits <= 0) {
+            return 0;
+        }
+
+        $taken = 0;
+
+        $lots = Deposit::query()
+            ->where('account_id', $this->getKey())
+            ->alive()
+            ->inSpendingOrder()
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($lots as $lot) {
+            if ($taken >= $credits) {
+                break;
+            }
+
+            $take = min($credits - $taken, $lot->left());
+
+            $lot->consumed += $take;
+            $lot->save();
+
+            $taken += $take;
+        }
+
+        // The relation is preloaded, so leaving it in place would answer the next balance
+        // read with the lots as they were before this.
+        $this->unsetRelation('deposits');
+
+        return $taken;
     }
 
     /**
@@ -307,6 +424,7 @@ class Account extends Model
         ?Model $source = null,
         ?string $note = null,
         array $metadata = [],
+        ?\DateTimeInterface $expiresAt = null,
     ): Deposit {
         return Deposit::create([
             'account_id' => $this->getKey(),
@@ -316,6 +434,13 @@ class Account extends Model
             'source_id' => $source?->getKey(),
             'note' => $note,
             'metadata' => $metadata ?: null,
+
+            // Null is never. A lot with no date simply does not die; it is still a lot.
+            'expires_at' => $expiresAt,
+
+            // Zero, not null, is what makes this row a lot. Null is reserved for the rows
+            // that predate lots, whose credits are in the column.
+            'consumed' => 0,
         ]);
     }
 }

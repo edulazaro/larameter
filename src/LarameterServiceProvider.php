@@ -43,6 +43,9 @@ class LarameterServiceProvider extends ServiceProvider
             __DIR__ . '/../database/migrations/create_larameter_tables.php.stub' => database_path(
                 'migrations/' . date('Y_m_d_His') . '_create_larameter_tables.php',
             ),
+            __DIR__ . '/../database/migrations/add_credit_expiry_to_larameter_deposits.php.stub' => database_path(
+                'migrations/' . date('Y_m_d_His', time() + 1) . '_add_credit_expiry_to_larameter_deposits.php',
+            ),
         ], 'larameter-migrations');
     }
 }

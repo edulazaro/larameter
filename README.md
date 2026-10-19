@@ -374,6 +374,25 @@ and the gap only surfaces on your provider's bill.
 Rates are indexed directly and not through dot notation, so a model with a dot in its name
 (`gpt-5.4`) is priced as itself rather than silently falling through to the wildcard.
 
+A prompt cache prices the input it serves or stores apart from the rest, so the rate can say
+what each costs, per million like the others and as the provider lists them:
+
+    'claude-sonnet-5-5' => [
+        'input' => 20_000, 'output' => 100_000,
+        'cache_read' => 1_000, 'cache_write_5m' => 25_000, 'cache_write_1h' => 40_000,
+    ],
+
+and the call says how much of each it used, with the uncached input as the quantity in:
+
+    $org->credits()->meter('claude-sonnet-5-5', 'token', $uncached, $out, cached: [
+        'read' => $cacheRead, 'write_5m' => $written5m, 'write_1h' => $written1h,
+    ]);
+
+The provider's response gives the token counts, never their price, so the prices live here
+with the rest. A cache price the rate leaves out is charged as `input`, and a kind it has no
+name for throws rather than going uncharged. The usage row keeps the split under
+`metadata.cached`.
+
 Spending draws on the plan allowance first and on purchased credits for the overflow, and
 each usage row records that split rather than recomputing it: rates and plans change, and a
 bill from last March has to still add up next year. When `credits_from_plan` and

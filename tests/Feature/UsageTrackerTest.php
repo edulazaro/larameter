@@ -139,4 +139,67 @@ class UsageTrackerTest extends TestCase
         $this->assertSame(125_000, $org->credits()->meterPrice('gpt-4o', 1_000_000, 1_000_000));
         $this->assertSame(0, $org->credits()->records()->count());
     }
+
+    public function test_cached_input_is_priced_at_its_own_rates(): void
+    {
+        config()->set('larameter.rates', [
+            'claude-sonnet-5-5' => ['input' => 20_000, 'output' => 100_000, 'cache_read' => 1_000, 'cache_write_5m' => 25_000, 'cache_write_1h' => 40_000],
+        ]);
+
+        $record = $this->meter->meter($this->org(), 'claude-sonnet-5-5', 'token', 1_000_000, 0, cached: [
+            'read' => 1_000_000, 'write_5m' => 1_000_000, 'write_1h' => 1_000_000,
+        ]);
+
+        // 20.000 uncached + 1.000 read + 25.000 written for five minutes + 40.000 for an hour.
+        $this->assertSame(86_000, $record->credits);
+        $this->assertSame(1_000_000, $record->quantity_in);
+        $this->assertSame(['read' => 1_000_000, 'write_5m' => 1_000_000, 'write_1h' => 1_000_000], $record->metadata['cached']);
+    }
+
+    public function test_the_split_is_kept_beside_the_callers_own_metadata(): void
+    {
+        config()->set('larameter.rates', ['claude-sonnet-5-5' => ['input' => 20_000, 'output' => 100_000, 'cache_read' => 1_000]]);
+
+        $record = $this->meter->meter($this->org(), 'claude-sonnet-5-5', 'token', 10, 0, metadata: ['operation' => 'chat'], cached: ['read' => 500, 'write_1h' => 0]);
+
+        $this->assertSame(['operation' => 'chat', 'cached' => ['read' => 500]], $record->metadata);
+    }
+
+    public function test_a_cache_price_left_out_is_the_input_price(): void
+    {
+        config()->set('larameter.rates', ['gpt-4o' => ['input' => 25_000, 'output' => 100_000]]);
+
+        $record = $this->meter->meter($this->org(), 'gpt-4o', 'token', 0, 0, cached: ['read' => 1_000_000]);
+
+        $this->assertSame(25_000, $record->credits);
+    }
+
+    public function test_an_unknown_cached_quantity_is_refused_rather_than_charged_as_nothing(): void
+    {
+        config()->set('larameter.rates', ['gpt-4o' => ['input' => 25_000, 'output' => 100_000]]);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->meter->meter($this->org(), 'gpt-4o', 'token', 10, 0, cached: ['hits' => 100]);
+    }
+
+    public function test_an_unpriced_model_counts_its_cached_input_too(): void
+    {
+        config()->set('larameter.rates', []);
+        config()->set('larameter.fallback_units_per_credit', 100);
+
+        $record = $this->meter->meter($this->org(), 'some-new-model', 'token', 100, 100, cached: ['read' => 800]);
+
+        $this->assertSame(10, $record->credits);
+    }
+
+    public function test_cached_input_can_be_priced_without_being_charged(): void
+    {
+        config()->set('larameter.rates', ['claude-sonnet-5-5' => ['input' => 20_000, 'output' => 100_000, 'cache_read' => 1_000]]);
+
+        $org = $this->org();
+
+        $this->assertSame(21_000, $org->credits()->meterPrice('claude-sonnet-5-5', 1_000_000, 0, ['read' => 1_000_000]));
+        $this->assertSame(0, $org->credits()->records()->count());
+    }
 }

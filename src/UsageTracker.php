@@ -59,6 +59,11 @@ class UsageTracker
      * The operation is what gets priced: for a model call that is the model name, so the
      * rate table reads the way providers publish theirs. The unit is only a label.
      *
+     * `$cached` is the input a prompt cache served or stored, which providers price apart
+     * from the rest: ['read' => …, 'write_5m' => …, 'write_1h' => …], each priced at the
+     * rate's cache_read, cache_write_5m and cache_write_1h. `$quantityIn` is then only
+     * the input that was not cached. The row keeps the split in its metadata.
+     *
      * @param Model $meterable
      * @param string $operation
      * @param string $unit
@@ -67,6 +72,7 @@ class UsageTracker
      * @param Model|null $actor
      * @param Model|null $subject
      * @param array<string, mixed> $metadata
+     * @param array<string, int> $cached
      * @return UsageRecord
      */
     public function meter(
@@ -78,9 +84,15 @@ class UsageTracker
         ?Model $actor = null,
         ?Model $subject = null,
         array $metadata = [],
+        array $cached = [],
     ): UsageRecord {
         $rates = config('larameter.rates') ?? [];
         $rate = $rates[$operation] ?? $rates['*'] ?? null;
+        $cached = $this->cachedQuantities($cached);
+
+        if ($cached) {
+            $metadata['cached'] = $cached;
+        }
 
         return UsageRecord::create([
             'account_id' => $this->account($meterable)->getKey(),
@@ -92,7 +104,7 @@ class UsageTracker
             'unit' => $unit,
             'quantity_in' => $quantityIn,
             'quantity_out' => $quantityOut,
-            'credits' => $this->creditsFor($rate, $quantityIn, $quantityOut),
+            'credits' => $this->creditsFor($rate, $quantityIn, $quantityOut, $cached),
             'metadata' => $metadata ?: null,
         ]);
     }
@@ -107,13 +119,14 @@ class UsageTracker
      * @param string $operation
      * @param int $quantityIn
      * @param int $quantityOut
+     * @param array<string, int> $cached
      * @return int
      */
-    public function meteredPriceOf(string $operation, int $quantityIn, int $quantityOut = 0): int
+    public function meteredPriceOf(string $operation, int $quantityIn, int $quantityOut = 0, array $cached = []): int
     {
         $rates = config('larameter.rates') ?? [];
 
-        return $this->creditsFor($rates[$operation] ?? $rates['*'] ?? null, $quantityIn, $quantityOut);
+        return $this->creditsFor($rates[$operation] ?? $rates['*'] ?? null, $quantityIn, $quantityOut, $this->cachedQuantities($cached));
     }
 
     /**
@@ -216,15 +229,38 @@ class UsageTracker
      * @param int $out
      * @return int
      */
-    private function creditsFor(?array $rate, int $in, int $out): int
+    private function creditsFor(?array $rate, int $in, int $out, array $cached = []): int
     {
         if (! $rate) {
-            return max(1, (int) ceil(($in + $out) / (int) config('larameter.fallback_units_per_credit', 100)));
+            return max(1, (int) ceil(($in + $out + array_sum($cached)) / (int) config('larameter.fallback_units_per_credit', 100)));
         }
 
         $credits = ($in / 1_000_000) * (float) ($rate['input'] ?? 0)
             + ($out / 1_000_000) * (float) ($rate['output'] ?? 0);
 
+        // A cache price the table leaves out is the input price: never a discount nobody wrote down.
+        foreach ($cached as $kind => $quantity) {
+            $credits += ($quantity / 1_000_000) * (float) ($rate['cache_' . $kind] ?? $rate['input'] ?? 0);
+        }
+
         return max(1, (int) ceil($credits));
+    }
+
+    /**
+     * The cached quantities a caller passed, without the zeros. A kind the rate table has
+     * no name for throws: priced as nothing, it would quietly undercharge.
+     *
+     * @param array<string, int> $cached
+     * @return array<string, int>
+     */
+    private function cachedQuantities(array $cached): array
+    {
+        $unknown = array_diff(array_keys($cached), ['read', 'write_5m', 'write_1h']);
+
+        if ($unknown) {
+            throw new \InvalidArgumentException('Unknown cached quantity: ' . implode(', ', $unknown) . '. Use read, write_5m or write_1h.');
+        }
+
+        return array_filter(array_map('intval', $cached));
     }
 }

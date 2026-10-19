@@ -154,6 +154,10 @@ return [
     | is how providers quote tokens. Anything not priced by the million is a fixed price,
     | so it belongs in `prices` above.
     |
+    | A model with a prompt cache prices that input apart: `cache_read`, `cache_write_5m`
+    | and `cache_write_1h`, also per million, as the provider's table lists them. They
+    | apply to what meter() is given as `cached`; one left out is priced as `input`.
+    |
     | '*' is the fallback for anything not listed.
     |
     | Keys are indexed directly, NOT through dot notation: a name with a dot in it
@@ -164,6 +168,7 @@ return [
     'rates' => [
         // 'gpt-4o'      => ['input' => 25_000, 'output' => 100_000],
         // 'gpt-4o-mini' => ['input' => 1_500,  'output' => 6_000],
+        // 'claude-sonnet-5-5' => ['input' => 20_000, 'output' => 100_000, 'cache_read' => 1_000, 'cache_write_5m' => 25_000, 'cache_write_1h' => 40_000],
         // '*'           => ['input' => 50_000, 'output' => 150_000],
     ],
 

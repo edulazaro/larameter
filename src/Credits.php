@@ -91,11 +91,12 @@ class Credits
      * @param string $operation
      * @param int $quantityIn
      * @param int $quantityOut
+     * @param array<string, int> $cached
      * @return int
      */
-    public function meterPrice(string $operation, int $quantityIn, int $quantityOut = 0): int
+    public function meterPrice(string $operation, int $quantityIn, int $quantityOut = 0, array $cached = []): int
     {
-        return $this->tracker()->meteredPriceOf($operation, $quantityIn, $quantityOut);
+        return $this->tracker()->meteredPriceOf($operation, $quantityIn, $quantityOut, $cached);
     }
 
     /**
@@ -222,6 +223,7 @@ class Credits
      * @param Model|null $actor
      * @param Model|null $subject
      * @param array<string, mixed> $metadata
+     * @param array<string, int> $cached  ['read' => …, 'write_5m' => …, 'write_1h' => …], see UsageTracker::meter()
      * @return CreditsRecord
      */
     public function meter(
@@ -232,6 +234,7 @@ class Credits
         ?Model $actor = null,
         ?Model $subject = null,
         array $metadata = [],
+        array $cached = [],
     ): UsageRecord {
         return $this->tracker()->meter(
             $this->meterable,
@@ -242,6 +245,7 @@ class Credits
             $actor,
             $subject,
             $metadata,
+            $cached,
         );
     }
 

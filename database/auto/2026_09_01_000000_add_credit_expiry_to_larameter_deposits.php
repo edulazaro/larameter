@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Schema;
  * Guarded, so it is safe in both directions: a fresh install already has the columns from
  * create_larameter_tables and this finds nothing to do.
  *
+ * Or has no table yet. create_larameter_tables is named after the day it was published, so
+ * one published after this date sorts later and `migrate` reaches this first; the table it
+ * creates then carries the columns already.
+ *
  * Nothing is migrated and nothing is recalculated, which is the point. One rule decides
  * what a row is: with a date it is a lot, without one it is history and its credits are
  * in purchased_credits. Every row written before this has a null date, so every one of
@@ -29,7 +33,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasColumn('larameter_deposits', 'expires_at')) {
+        if (! Schema::hasTable('larameter_deposits') || Schema::hasColumn('larameter_deposits', 'expires_at')) {
             return;
         }
 

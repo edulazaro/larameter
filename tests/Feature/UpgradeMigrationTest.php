@@ -50,7 +50,7 @@ class UpgradeMigrationTest extends TestCase
     /**
      * And is a no-op against a database that already has them.
      *
-     * Which is every fresh install, because create_larameter_tables puts them there.
+     * Which is every fresh install whose create_larameter_tables ran first, because it puts them there.
      * Without the guard, `migrate` on a new project would fail on a duplicate column.
      */
     public function test_it_does_nothing_when_the_columns_are_already_there(): void
@@ -60,6 +60,22 @@ class UpgradeMigrationTest extends TestCase
         $this->migration()->up();
 
         $this->assertTrue(Schema::hasColumn('larameter_deposits', 'expires_at'));
+    }
+
+    /**
+     * Nor when there is no table yet.
+     *
+     * Publishing create_larameter_tables names it after the day it was published, so on an
+     * install published after this migration's date it sorts later and `migrate` reaches
+     * this one first. The table then arrives with the columns already in it.
+     */
+    public function test_it_does_nothing_before_the_table_exists(): void
+    {
+        Schema::withoutForeignKeyConstraints(fn () => Schema::drop('larameter_deposits'));
+
+        $this->migration()->up();
+
+        $this->assertFalse(Schema::hasTable('larameter_deposits'));
     }
 
     /**

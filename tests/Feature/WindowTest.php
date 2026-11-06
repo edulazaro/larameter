@@ -222,18 +222,38 @@ class WindowTest extends TestCase
         $this->org()->credits()->remaining();
     }
 
-    public function test_declaring_no_windows_at_all_opts_out_of_allowance_metering(): void
+    public function test_declaring_no_windows_at_all_leaves_only_what_was_purchased(): void
     {
         config()->set('larameter.windows', []);
 
         $org = $this->org();
-        $org->credits()->charge('thing', credits: 10_000);
+        $org->credits()->deposit(500);
 
-        // Usage is still recorded. Nothing is refused, because there is no period for an
-        // allowance to be an allowance of.
-        $this->assertSame(PHP_INT_MAX, $org->credits()->remaining());
-        $this->assertSame(1, $org->credits()->records()->count());
+        // The plan grants 200 a month, but with no month declared there is no period for
+        // that allowance to be one of: the whole charge comes out of the purchase.
+        $record = $org->credits()->charge('thing', credits: 300)->fresh();
+
+        $this->assertSame(0, $record->credits_from_plan);
+        $this->assertSame(300, $record->credits_from_purchased);
+        $this->assertSame(200, $org->credits()->remaining());
+        $this->assertFalse($org->credits()->allows(201));
         $this->assertSame(0, Window::count());
+    }
+
+    public function test_with_no_windows_and_nothing_purchased_there_is_nothing_to_spend(): void
+    {
+        config()->set('larameter.windows', []);
+
+        $org = $this->org();
+
+        $this->assertSame(0, $org->credits()->remaining());
+        $this->assertFalse($org->credits()->allows(1));
+
+        // Charging still does not refuse: the usage is recorded as an overdraft.
+        $record = $org->credits()->charge('thing', credits: 10)->fresh();
+
+        $this->assertSame(0, $record->credits_from_plan + $record->credits_from_purchased);
+        $this->assertSame(1, $org->credits()->records()->count());
     }
 
     public function test_when_they_can_spend_again(): void

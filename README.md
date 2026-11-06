@@ -82,8 +82,9 @@ balance would burn the session before a word was typed. That holds for reading t
 without it, so a row claiming a Monday three weeks back answers with the Monday ahead,
 which is the only answer a screen can show.
 
-Declare no windows at all and you have opted out of allowance metering: usage is still
-recorded, nothing is refused, and only purchased credits mean anything.
+Declare no windows at all and plans grant nothing, because there is no period for an
+allowance to be one of: every charge comes out of purchased credits, which is what a
+prepaid balance wants. For an unlimited account, give its plan `-1` instead.
 
 ## Nothing to synchronise
 

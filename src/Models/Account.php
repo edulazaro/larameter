@@ -150,13 +150,17 @@ class Account extends Model
      * Reads only: an expired window reports as full without being restarted, or opening
      * the app to check a balance would start a session.
      *
+     * With no window declared there is no period for an allowance to be one of, so the plan
+     * grants nothing and every charge comes out of what was purchased. Unlimited is a plan
+     * asking for -1, not the absence of windows.
+     *
      * @return int
      */
     public function headroom(): int
     {
         $declared = Window::declared();
         if ($declared === []) {
-            return PHP_INT_MAX;
+            return 0;
         }
 
         $rows = $this->windows->keyBy('key');
